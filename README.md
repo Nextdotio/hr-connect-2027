@@ -3,7 +3,7 @@
 Single-page React (Vite + Tailwind) brochure for **HR Connect**, the HR community for
 iGaming professionals. A NEXT.io portfolio project, supported by GamingMalta.
 
-Live: https://stuatnext.github.io/hr-connect-2027/
+Live: https://nextdotio.github.io/hr-connect-2027/
 
 ## Run it
 
