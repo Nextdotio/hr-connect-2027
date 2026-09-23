@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  /* HR Connect brand — sampled from the official infographic and deck */
+  --color-hrc-green: #245b3c;
+  --color-hrc-green-deep: #1b2d21;
+  --color-hrc-green-mid: #2f7a4f;
+  --color-hrc-amber: #ffce33;
+  --color-hrc-amber-deep: #d9a800;
+  --color-hrc-cream: #fffdf6;
+  --color-hrc-sand: #f6f3e9;
+  --color-hrc-ink: #14251b;
+  --font-family-sans: 'Plus Jakarta Sans', 'Segoe UI', Roboto, ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    background-color: #fffdf6;
+    color: #14251b;
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', Roboto, ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: #ffce33; color: #14251b; }
+  /* keep anchored headings clear of the fixed header */
+  section[id] { scroll-margin-top: 5.5rem; }
+}
+
+@layer utilities {
+  /* The brand's angled-hexagon silhouette, used for member badges and chips */
+  .hex-clip {
+    clip-path: polygon(9% 0, 91% 0, 100% 50%, 91% 100%, 9% 100%, 0 50%);
+  }
+  .hex-clip-sm {
+    clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%);
+  }
+  .corner-cut {
+    clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px));
+  }
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity .65s cubic-bezier(.2,.7,.3,1), transform .65s cubic-bezier(.2,.7,.3,1);
+  }
+  .animate-on-scroll.visible { opacity: 1; transform: none; }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track { animation: marquee 46s linear infinite; }
+.marquee-track:hover { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; }
+  .animate-on-scroll { opacity: 1; transform: none; transition: none; }
+}
