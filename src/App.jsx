@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Users, CalendarDays, BarChart3, GraduationCap, UserCheck, Utensils,
   Ticket, Mail, ArrowRight, Quote, Check, Sparkles, MessageSquare,
-  Presentation, Globe2, MapPin, Building2, Menu, X, Search,
+  Presentation, Globe2, MapPin, Building2, Menu, X, Search, Video, CalendarCheck,
 } from 'lucide-react'
 
 const base = import.meta.env.BASE_URL
@@ -172,20 +172,27 @@ const TIER_INCLUDES = [
 ]
 
 /* Member-facing programme only — internal admin, invoicing and campaign
-   activity from the project calendar is intentionally left out. */
+   activity from the project calendar is intentionally left out.
+   Each item is [kind, text]. The kind sets its marker and weight on the page:
+     live   — in person in Malta (also turns the month amber)
+     plan   — agendas and speaker line-ups
+     survey — benchmarking, satisfaction and topic polls
+     online — the monthly members' Zoom session
+   Within a month, list the distinctive moment first and the online session last,
+   so the recurring session reads as the baseline rather than the headline. */
 const CALENDAR = [
-  { m: 'Jan', items: ['Q1 agenda shared', 'Online session · member introduction'] },
-  { m: 'Feb', items: ['Online session · member introduction', 'Benchmarking survey'] },
-  { m: 'Mar', items: ['Online session · member introduction', 'In-person event · Malta'], flag: 'in-person' },
-  { m: 'Apr', items: ['Q2 agenda shared', 'Online session · member introduction', 'Benchmarking survey'] },
-  { m: 'May', items: ['HR Connect @ NEXT Summit Valletta', 'Exclusive members’ dinner', 'Online session'], flag: 'in-person' },
-  { m: 'Jun', items: ['Online session · member introduction', 'Satisfaction survey'] },
-  { m: 'Jul', items: ['Q3 agenda shared', 'Online session · member introduction'] },
-  { m: 'Aug', items: ['Online session · member introduction'] },
-  { m: 'Sep', items: ['Online session · member introduction', 'Benchmarking survey', 'Guest speakers confirmed'] },
-  { m: 'Oct', items: ['Q4 agenda shared', 'Online session · member introduction'] },
-  { m: 'Nov', items: ['Online session · member introduction', 'Christmas in-person event'], flag: 'in-person' },
-  { m: 'Dec', items: ['Online session · member introduction', 'Member poll · topics for 2028'] },
+  { m: 'Jan', items: [['plan', 'Q1 agenda shared'], ['online', 'Online session · member introduction']] },
+  { m: 'Feb', items: [['survey', 'Benchmarking survey'], ['online', 'Online session · member introduction']] },
+  { m: 'Mar', items: [['live', 'In-person event · Malta'], ['online', 'Online session · member introduction']] },
+  { m: 'Apr', items: [['plan', 'Q2 agenda shared'], ['survey', 'Benchmarking survey'], ['online', 'Online session · member introduction']] },
+  { m: 'May', items: [['live', 'HR Connect @ NEXT Summit Valletta'], ['live', 'Exclusive members’ dinner'], ['online', 'Online session']] },
+  { m: 'Jun', items: [['survey', 'Satisfaction survey'], ['online', 'Online session · member introduction']] },
+  { m: 'Jul', items: [['plan', 'Q3 agenda shared'], ['online', 'Online session · member introduction']] },
+  { m: 'Aug', items: [['online', 'Online session · member introduction']] },
+  { m: 'Sep', items: [['plan', 'Guest speakers confirmed'], ['survey', 'Benchmarking survey'], ['online', 'Online session · member introduction']] },
+  { m: 'Oct', items: [['plan', 'Q4 agenda shared'], ['online', 'Online session · member introduction']] },
+  { m: 'Nov', items: [['live', 'Christmas in-person event'], ['online', 'Online session · member introduction']] },
+  { m: 'Dec', items: [['survey', 'Member poll · topics for 2028'], ['online', 'Online session · member introduction']] },
 ]
 
 const MEMBERS = [
@@ -412,12 +419,14 @@ function Hero() {
         className="pointer-events-none absolute inset-0"
         style={{ background: 'linear-gradient(115deg,#fffdf6 0%,#fffdf6 42%,#fdf3d2 68%,#ffce33 128%)' }}
       />
-      {/* angled photo panel, echoing the infographic's hexagon crop */}
+      {/* angled photo panel, echoing the infographic's hexagon crop. The top vertex
+          sits at 65% so the diagonal clears the transparent nav's links at every
+          laptop width (at 54% it cut through "Programme" from ~1150 to ~1400px) */}
       <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] lg:block">
         <div
           className="h-full w-full"
           style={{
-            clipPath: 'polygon(54% 0, 100% 0, 100% 100%, 0 100%, 0 58%)',
+            clipPath: 'polygon(65% 0, 100% 0, 100% 100%, 0 100%, 0 58%)',
             backgroundImage: `url(${base}images/hr-connect-session.jpg)`,
             backgroundSize: 'cover',
             backgroundPosition: '50% 26%',
@@ -466,17 +475,20 @@ function Hero() {
           </p>
         </div>
 
-        {/* proof strip */}
-        <div className="animate-on-scroll mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-2xl
-                        bg-hrc-green/10 lg:mt-20 lg:grid-cols-4"
+        {/* proof strip: a solid card over the photo edge. The hairlines are the green/10
+            gap over an opaque cream backing, so they read the same over cream and photo */}
+        <div className="animate-on-scroll mt-16 overflow-hidden rounded-2xl bg-hrc-cream ring-1 ring-hrc-green/10
+                        shadow-[0_1px_2px_rgba(20,37,27,.05),0_22px_48px_-30px_rgba(20,37,27,.5)] lg:mt-20"
              data-anim style={{ transitionDelay: '260ms' }}>
-          {STATS.map((s) => (
-            <div key={s.label} className="bg-hrc-cream/85 px-5 py-6 backdrop-blur-sm sm:px-7 sm:py-7">
-              <div className="text-3xl font-extrabold tracking-tight text-hrc-green sm:text-4xl">{s.value}</div>
-              <div className="mt-1.5 text-[13px] font-bold text-hrc-ink/80">{s.label}</div>
-              <div className="mt-0.5 text-[11.5px] leading-snug text-hrc-ink/45">{s.note}</div>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 gap-px bg-hrc-green/10 lg:grid-cols-4">
+            {STATS.map((s) => (
+              <div key={s.label} className="bg-hrc-cream px-5 py-6 sm:px-7 sm:py-7">
+                <div className="text-3xl font-extrabold tracking-tight tabular-nums text-hrc-green sm:text-4xl">{s.value}</div>
+                <div className="mt-1.5 text-[13px] font-bold text-hrc-ink/80">{s.label}</div>
+                <div className="mt-0.5 text-[11.5px] leading-snug text-hrc-ink/45">{s.note}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -486,6 +498,9 @@ function Hero() {
 /* ─── About / mission ─────────────────────────────────────────────────── */
 
 function About() {
+  // The mission statement is the section head: its first sentence is the headline and
+  // the rest the lead. (A separate headline repeated the sentence's opening words.)
+  const cut = MISSION.indexOf('. ') + 1
   return (
     <section id="about" className="relative bg-hrc-green-deep py-20 sm:py-28">
       <MarkTexture className="text-hrc-amber" opacity={0.07} />
@@ -493,15 +508,9 @@ function About() {
         <SectionHead
           tone="dark"
           eyebrow="What is HR Connect"
-          title="Your only HR community for iGaming professionals."
+          title={MISSION.slice(0, cut)}
+          lead={MISSION.slice(cut).trim()}
         />
-
-        <blockquote className="animate-on-scroll mt-10 max-w-4xl border-l-4 border-hrc-amber pl-6 sm:pl-8"
-                    data-anim style={{ transitionDelay: '80ms' }}>
-          <p className="text-xl font-medium leading-relaxed text-white/90 sm:text-2xl sm:leading-relaxed">
-            “{MISSION}”
-          </p>
-        </blockquote>
 
         <div className="mt-14 grid gap-6 md:grid-cols-3">
           {PILLARS.map((p, i) => (
@@ -565,15 +574,20 @@ function Benefits() {
           lead="Every tier receives the full programme — the only things that change with company size are
                 the number of named representatives and the fee."
         />
-        <div className="mt-14 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+        {/* A wrapping row centres a short last row (7 items: 4 + 3 on desktop, 2-2-2-1
+            on tablet), so no deliverable sits alone beside empty columns. Four across,
+            the badge moves above the text so the titles keep to one line. */}
+        <div className="mt-14 flex flex-wrap justify-center gap-x-8 gap-y-9 lg:gap-y-12">
           {BENEFITS.map((b, i) => (
-            <div key={b.title} className="animate-on-scroll flex gap-4"
-                 data-anim style={{ transitionDelay: `${(i % 3) * 70}ms` }}>
+            <div key={b.title}
+                 className="animate-on-scroll flex w-full gap-4 sm:w-[calc(50%-1rem)] lg:w-[calc(25%-1.5rem)]
+                            lg:flex-col lg:gap-4"
+                 data-anim style={{ transitionDelay: `${(i % 4) * 70}ms` }}>
               <div className="hex-clip flex h-11 w-12 shrink-0 items-center justify-center bg-hrc-green">
                 <b.icon className="h-5 w-5 text-hrc-amber" strokeWidth={2} />
               </div>
-              <div className="pt-0.5">
-                <h3 className="text-[15.5px] font-extrabold text-hrc-green">{b.title}</h3>
+              <div className="pt-0.5 lg:pt-0">
+                <h3 className="text-balance text-[15.5px] font-extrabold text-hrc-green">{b.title}</h3>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-hrc-ink/65">{b.body}</p>
               </div>
             </div>
@@ -606,7 +620,7 @@ function Membership() {
           eyebrow="Membership"
           title="The size of your Malta organisation sets your fee."
           lead="Annual company membership. Four bands, published pricing, no negotiation needed —
-                find your band below. Membership is priced on organisation size - benefits reach your whole Malta team."
+                find your band below. Membership is priced on organisation size — benefits reach your whole Malta team."
         />
 
         {/* fee finder */}
@@ -646,7 +660,7 @@ function Membership() {
                   <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/50">
                     {picked ? 'Selected band' : 'Your band'}
                   </div>
-                  <div className="mt-1.5 text-4xl font-extrabold tracking-tight text-hrc-amber sm:text-5xl">
+                  <div className="mt-1.5 text-4xl font-extrabold tracking-tight tabular-nums text-hrc-amber sm:text-5xl">
                     {eur(active.price)}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-white/70">
@@ -662,8 +676,11 @@ function Membership() {
           </div>
         </div>
 
-        {/* tier cards */}
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* band cards. Only the fee, the seats and the Valletta passes change between
+            bands, so each card carries just those. The shared TIER_INCLUDES are listed
+            once underneath instead of four times, which also keeps all four fees on one
+            phone screen (two by two) */}
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-4">
           {TIERS.map((t, i) => {
             const on = active?.id === t.id
             return (
@@ -679,58 +696,73 @@ function Membership() {
                               : 'ring-1 ring-hrc-ink/8 hover:-translate-y-1 hover:ring-hrc-green/40'}`}
                 data-anim style={{ transitionDelay: `${i * 70}ms` }}
               >
-                <div className={`px-6 pt-6 pb-5 transition-colors
+                <div className={`px-4 pt-4 pb-3.5 transition-colors sm:px-6 sm:pt-6 sm:pb-5
                                 ${on ? 'bg-hrc-green' : 'bg-hrc-green-deep group-hover:bg-hrc-green'}`}>
-                  <div className="flex items-center gap-2 text-hrc-amber">
-                    <Users className="h-4 w-4" strokeWidth={2.4} />
-                    <span className="text-[11px] font-extrabold uppercase tracking-[0.18em]">Employees</span>
+                  <div className="flex items-center gap-1.5 text-hrc-amber sm:gap-2">
+                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.4} />
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] sm:text-[11px] sm:tracking-[0.18em]">
+                      Employees
+                    </span>
                   </div>
-                  <div className="mt-2 text-2xl font-extrabold text-white">{t.range}</div>
+                  <div className="mt-1.5 text-xl font-extrabold tabular-nums text-white sm:mt-2 sm:text-2xl">{t.range}</div>
                 </div>
 
-                <div className="border-b border-hrc-ink/8 px-6 py-5">
-                  <div className="text-3xl font-extrabold tracking-tight text-hrc-green">{eur(t.price)}</div>
-                  <div className="mt-0.5 text-[12.5px] font-semibold text-hrc-ink/45">per year</div>
+                <div className="px-4 pt-4 pb-3.5 sm:px-6 sm:pt-5 sm:pb-5">
+                  <div className="text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green sm:text-[2rem]">
+                    {eur(t.price)}
+                  </div>
+                  <div className="mt-1.5 text-[12px] font-semibold text-hrc-ink/45 sm:text-[12.5px]">per year</div>
                 </div>
 
-                <ul className="flex-1 space-y-2.5 px-6 py-5">
-                  <li className="flex gap-2.5 text-[13.5px] font-bold text-hrc-ink/85">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-hrc-green" strokeWidth={3} />
+                <ul className="flex-1 space-y-2 border-t border-hrc-ink/8 px-4 py-3.5 sm:space-y-2.5 sm:px-6 sm:py-5">
+                  <li className="flex gap-1.5 text-[12.5px] font-bold leading-snug text-hrc-ink/85 sm:gap-2.5 sm:text-[13.5px]">
+                    <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-hrc-green sm:mt-px sm:h-4 sm:w-4" strokeWidth={2.2} />
                     {t.reps} representatives
                   </li>
-                  <li className="flex gap-2.5 text-[13.5px] leading-snug text-hrc-ink/65">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-hrc-green/45" strokeWidth={3} />
-                    {t.reps} free NEXT Summit Valletta passes
+                  <li className="flex gap-1.5 text-[12.5px] leading-snug text-hrc-ink/70 sm:gap-2.5 sm:text-[13.5px]">
+                    <Ticket className="mt-0.5 h-3.5 w-3.5 shrink-0 text-hrc-green sm:mt-px sm:h-4 sm:w-4" strokeWidth={2.2} />
+                    <span className="text-balance">{t.reps} free NEXT Summit Valletta passes</span>
                   </li>
-                  {TIER_INCLUDES.map((inc) => (
-                    <li key={inc} className="flex gap-2.5 text-[13.5px] leading-snug text-hrc-ink/65">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-hrc-green/45" strokeWidth={3} />
-                      {inc}
-                    </li>
-                  ))}
                 </ul>
 
-                <div className={`px-6 pb-6 text-[12.5px] font-extrabold transition-colors
-                                ${on ? 'text-hrc-green' : 'text-hrc-ink/35 group-hover:text-hrc-green'}`}>
-                  {on ? '✓ Selected' : 'Select this band'}
+                <div className={`flex items-center gap-1.5 border-t border-hrc-ink/8 px-4 py-3 text-[12px] font-extrabold
+                                 transition-colors sm:px-6 sm:py-3.5 sm:text-[12.5px]
+                                ${on ? 'bg-hrc-green/[0.07] text-hrc-green' : 'text-hrc-green/55 group-hover:text-hrc-green'}`}>
+                  {on
+                    ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> Selected</>
+                    : <>Select this band <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>}
                 </div>
               </button>
             )
           })}
         </div>
 
-        <div className="animate-on-scroll mt-8 flex flex-wrap items-center justify-between gap-5
-                        rounded-2xl bg-white px-7 py-6 ring-1 ring-hrc-ink/8" data-anim>
-          <p className="max-w-xl text-[14.5px] leading-relaxed text-hrc-ink/65">
-            Membership runs for the calendar year and covers your whole People team through your named
-            representatives. Not sure which band you fall into? We will confirm it with you.
-          </p>
-          <a href={buildMailto(active)}
-             className="inline-flex shrink-0 items-center gap-2 rounded-full bg-hrc-green px-7 py-3.5
-                        text-sm font-bold text-white transition-colors hover:bg-hrc-green-mid">
-            <Mail className="h-4 w-4" />
-            {active ? `Enquire — ${eur(active.price)}` : 'Enquire about membership'}
-          </a>
+        {/* what every band shares, once, then the enquiry */}
+        <div className="animate-on-scroll mt-5 overflow-hidden rounded-2xl bg-white ring-1 ring-hrc-ink/8 sm:mt-6" data-anim>
+          <div className="px-5 py-5 sm:px-7 sm:py-6">
+            <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-hrc-green">Every band includes</div>
+            <ul className="mt-4 grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {TIER_INCLUDES.map((inc) => (
+                <li key={inc} className="flex gap-2.5 text-[13.5px] font-semibold leading-snug text-hrc-ink/75">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-hrc-green" strokeWidth={3} />
+                  <span className="text-balance">{inc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-5 border-t border-hrc-ink/8 bg-hrc-sand/45
+                          px-5 py-5 sm:px-7 sm:py-6">
+            <p className="max-w-xl text-[14.5px] leading-relaxed text-hrc-ink/65">
+              Membership runs for the calendar year and covers your whole People team through your named
+              representatives. Not sure which band you fall into? We will confirm it with you.
+            </p>
+            <a href={buildMailto(active)}
+               className="inline-flex shrink-0 items-center gap-2 rounded-full bg-hrc-green px-7 py-3.5
+                          text-sm font-bold text-white transition-colors hover:bg-hrc-green-mid">
+              <Mail className="h-4 w-4" />
+              {active ? `Enquire — ${eur(active.price)}` : 'Enquire about membership'}
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -775,6 +807,18 @@ function New2027() {
 
 /* ─── 2027 programme calendar ─────────────────────────────────────────── */
 
+/* How each kind of calendar item is marked. In-person moments carry the weight;
+   the monthly session is the quiet baseline every month shares. */
+const KIND = {
+  live:   { Icon: MapPin,        text: 'text-[13.5px] font-bold text-hrc-green', icon: 'text-hrc-amber-deep' },
+  plan:   { Icon: CalendarCheck, text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
+  survey: { Icon: BarChart3,     text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
+  online: { Icon: Video,         text: 'text-[13px] text-hrc-ink/55',            icon: 'text-hrc-green/50' },
+}
+
+/* The year as four quarters of three months, matching how agendas are shared. */
+const QUARTERS = [0, 1, 2, 3].map((q) => CALENDAR.slice(q * 3, q * 3 + 3))
+
 function Programme() {
   return (
     <section id="programme" className="bg-hrc-cream py-20 sm:py-28">
@@ -785,42 +829,56 @@ function Programme() {
           lead="A monthly rhythm online, three in-person moments in Malta, and benchmarking through the year."
         />
 
-        <div className="animate-on-scroll mt-8 flex flex-wrap items-center gap-5 text-[12.5px] font-semibold
-                        text-hrc-ink/55" data-anim>
+        <div className="animate-on-scroll mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] font-semibold
+                        text-hrc-ink/60" data-anim>
           <span className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-hrc-green" /> Online session
+            <span className="hex-clip h-3.5 w-4 bg-hrc-amber" aria-hidden="true" /> In-person in Malta
           </span>
           <span className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-hrc-amber-deep" /> In-person in Malta
+            <Video className="h-4 w-4 text-hrc-green/60" strokeWidth={2.2} aria-hidden="true" /> Online session
           </span>
         </div>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {CALENDAR.map((c, i) => {
-            const live = c.flag === 'in-person'
-            return (
-              <div key={c.m}
-                   className={`animate-on-scroll rounded-xl p-5 ring-1 transition-shadow
-                     ${live
-                       ? 'bg-hrc-amber/12 ring-hrc-amber-deep/30'
-                       : 'bg-white ring-hrc-ink/8'}`}
-                   data-anim style={{ transitionDelay: `${(i % 4) * 60}ms` }}>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-lg font-extrabold text-hrc-green">{c.m}</span>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-hrc-ink/30">2027</span>
-                </div>
-                <ul className="mt-3 space-y-2">
-                  {c.items.map((it) => (
-                    <li key={it} className="flex gap-2 text-[13.5px] leading-snug text-hrc-ink/70">
-                      <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full
-                        ${live ? 'bg-hrc-amber-deep' : 'bg-hrc-green/50'}`} />
-                      {it}
-                    </li>
-                  ))}
-                </ul>
+        {/* Quarter cards. From md up each card is a four-row grid (header + three
+            months, the months as equal 1fr rows) and the cards stretch to one height,
+            so the month rows line up across the quarters like a planner. */}
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {QUARTERS.map((months, q) => (
+            <div key={q} role="group" aria-label={`Quarter ${q + 1}: ${months[0].m} to ${months[2].m}`}
+                 className="animate-on-scroll flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-hrc-ink/8
+                            md:grid md:grid-rows-[auto_1fr_1fr_1fr]"
+                 data-anim style={{ transitionDelay: `${q * 70}ms` }}>
+              <div className="flex items-baseline justify-between border-b border-hrc-ink/8 px-4 py-3.5 sm:px-5">
+                <span className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-hrc-green">Q{q + 1}</span>
+                <span className="text-[12px] font-semibold text-hrc-ink/40">{months[0].m} – {months[2].m}</span>
               </div>
-            )
-          })}
+              {months.map((c, r) => {
+                const live = c.items.some(([k]) => k === 'live')
+                return (
+                  <div key={c.m}
+                       className={`flex gap-3 px-4 py-4 sm:gap-4 sm:px-5 ${r > 0 ? 'border-t border-hrc-ink/[0.07]' : ''}
+                                   ${live ? 'bg-hrc-amber/[0.1]' : ''}`}>
+                    <div className={`hex-clip flex h-10 w-12 shrink-0 items-center justify-center text-[11.5px]
+                                     font-extrabold uppercase tracking-[0.08em]
+                                     ${live ? 'bg-hrc-amber text-hrc-green-deep' : 'bg-hrc-green text-white'}`}>
+                      {c.m}
+                    </div>
+                    <ul className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                      {c.items.map(([k, t]) => {
+                        const { Icon, text, icon } = KIND[k]
+                        return (
+                          <li key={t} className={`flex gap-2 leading-snug ${text}`}>
+                            <Icon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${icon}`} strokeWidth={2.2} aria-hidden="true" />
+                            {t}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
         <p className="animate-on-scroll mt-8 text-[13px] text-hrc-ink/45" data-anim>
@@ -944,14 +1002,15 @@ function Footer() {
                       md:flex-row md:justify-between md:text-left">
         <img src={`${base}logos/hrconnect-lockup-amber.svg`} alt="HR Connect — NEXT.io | GAMING MALTA"
              className="h-9 w-auto" />
-        <div className="text-[13px] leading-relaxed text-white/45">
-          A NEXT.io portfolio project, supported by GamingMalta.
-          <br className="hidden md:block" />
-          <a href={`mailto:${CONTACT}`} className="font-semibold text-white/70 hover:text-hrc-amber">
-            {CONTACT}
-          </a>
-          <span className="mx-2 text-white/20">·</span>
-          HR Connect 2027
+        <div className="space-y-1 text-[13px] leading-relaxed text-white/45">
+          <p>A NEXT.io portfolio project, supported by GamingMalta.</p>
+          <p>
+            <a href={`mailto:${CONTACT}`} className="font-semibold text-white/70 hover:text-hrc-amber">
+              {CONTACT}
+            </a>
+            <span className="mx-2 text-white/20">·</span>
+            HR Connect 2027
+          </p>
         </div>
       </div>
     </footer>
