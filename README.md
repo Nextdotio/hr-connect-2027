@@ -18,12 +18,12 @@ npm run deploy   # build + publish to gh-pages
 
 | Section | Content |
 | --- | --- |
-| Hero | Positioning, mission, proof stats |
+| Hero | Positioning, mission, the four fee bands at a glance, proof stats |
 | Members | The 27-company logo wall, directly beneath the hero |
-| What is HR Connect | Mission statement + three pillars |
-| Who it's for | Who / Sector / Where |
 | What you get | The seven membership deliverables |
 | Membership | Four fee bands by Malta headcount, with an interactive fee finder |
+| What is HR Connect | Mission statement + three pillars |
+| Who it's for | Who / Sector / Where |
 | New for 2027 | Member introductions, peer exchange, expert panels, poker tournament |
 | Programme | The 2027 member calendar |
 | What they say | Six attributed member testimonials |

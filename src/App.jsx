@@ -252,6 +252,11 @@ const TESTIMONIALS = [
 
 const eur = (n) => '€' + n.toLocaleString('en-US')
 
+/* Typesetting only: ties a text's last two words with a no-break space, so a card
+   never ends on a lone word. (CSS `text-wrap: pretty` is a heuristic in Chrome and
+   misses short blocks.) The visible words are unchanged. */
+const tie = (s) => s.replace(/ (\S+)$/, '\u00a0$1')
+
 function tierForHeadcount(n) {
   if (!Number.isFinite(n) || n < 1) return null
   return TIERS.find((t) => n >= t.min && n <= t.max) || null
@@ -295,6 +300,39 @@ function useScrollAnimation() {
   }, [])
 }
 
+/* A deep link (…/hr-connect-2027/#membership) lands on its section on first load.
+   The browser's own fragment jump runs before React has rendered the section, so it
+   never landed; the jump is made here instead, then repeated once fonts and late
+   layout have settled. It is instant, not smooth, and any scroll input cancels it. */
+function useLandOnHash() {
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1))
+    if (!id || !document.getElementById(id)) return
+    let stop = false
+    const cancel = () => { stop = true }
+    const land = () => {
+      const el = document.getElementById(id)
+      if (stop || !el) return
+      const root = document.documentElement
+      const prev = root.style.scrollBehavior
+      root.style.scrollBehavior = 'auto'
+      el.scrollIntoView({ block: 'start' })
+      root.style.scrollBehavior = prev
+    }
+    const inputs = ['wheel', 'touchstart', 'keydown', 'mousedown']
+    inputs.forEach((t) => window.addEventListener(t, cancel, { passive: true }))
+    const raf = requestAnimationFrame(land)
+    const timers = [setTimeout(land, 350), setTimeout(land, 1200)]
+    document.fonts?.ready.then(() => requestAnimationFrame(land))
+    return () => {
+      stop = true
+      cancelAnimationFrame(raf)
+      timers.forEach(clearTimeout)
+      inputs.forEach((t) => window.removeEventListener(t, cancel))
+    }
+  }, [])
+}
+
 /* ─── Small building blocks ───────────────────────────────────────────── */
 
 function Eyebrow({ children, tone = 'green' }) {
@@ -311,7 +349,15 @@ function Eyebrow({ children, tone = 'green' }) {
   )
 }
 
-function SectionHead({ eyebrow, title, lead, tone = 'green', align = 'left' }) {
+/* `size` sets the headline scale. "statement" is for a headline that is a whole
+   sentence (the About mission line): smaller on a phone so it keeps to four lines,
+   the same scale as every other head from sm up. */
+const HEAD_SIZE = {
+  default:   'text-3xl leading-[1.08] sm:text-4xl lg:text-[2.75rem]',
+  statement: 'text-[1.6rem] leading-[1.14] sm:text-4xl sm:leading-[1.08] lg:text-[2.75rem]',
+}
+
+function SectionHead({ eyebrow, title, lead, tone = 'green', align = 'left', size = 'default' }) {
   const dark = tone === 'dark'
   return (
     <div
@@ -321,12 +367,12 @@ function SectionHead({ eyebrow, title, lead, tone = 'green', align = 'left' }) {
       <div className={align === 'center' ? 'flex justify-center' : ''}>
         <Eyebrow tone={dark ? 'amber' : 'green'}>{eyebrow}</Eyebrow>
       </div>
-      <h2 className={`mt-5 text-3xl sm:text-4xl lg:text-[2.75rem] font-extrabold leading-[1.08] tracking-tight
+      <h2 className={`mt-5 font-extrabold tracking-tight text-balance ${HEAD_SIZE[size]}
         ${dark ? 'text-white' : 'text-hrc-green'}`}>
         {title}
       </h2>
       {lead && (
-        <p className={`mt-5 text-base sm:text-lg leading-relaxed ${dark ? 'text-white/70' : 'text-hrc-ink/70'}`}>
+        <p className={`mt-5 text-base sm:text-lg leading-relaxed text-pretty ${dark ? 'text-white/70' : 'text-hrc-ink/70'}`}>
           {lead}
         </p>
       )}
@@ -336,9 +382,11 @@ function SectionHead({ eyebrow, title, lead, tone = 'green', align = 'left' }) {
 
 /* ─── Navigation ──────────────────────────────────────────────────────── */
 
+/* In page order. The product (membership fees) comes first, and sits right after
+   "What you get" on the page. */
 const NAV = [
-  ['About', 'about'],
   ['Membership', 'membership'],
+  ['About', 'about'],
   ['New for 2027', 'new-2027'],
   ['Programme', 'programme'],
 ]
@@ -346,6 +394,7 @@ const NAV = [
 function Nav() {
   const [solid, setSolid] = useState(false)
   const [open, setOpen] = useState(false)
+  const barRef = useRef(null)
 
   useEffect(() => {
     const onScroll = () => setSolid(window.scrollY > 24)
@@ -354,38 +403,63 @@ function Nav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Anchored sections land flush under the bar. Its height changes by breakpoint,
+  // so it is measured into --nav-h (read by `section[id]` in index.css) rather than
+  // hardcoded. Only the bar row is observed: the open phone menu hangs below it and
+  // must not push the landing point down.
+  useEffect(() => {
+    const bar = barRef.current
+    if (!bar) return
+    const set = () => document.documentElement.style.setProperty('--nav-h', `${bar.offsetHeight}px`)
+    set()
+    if (!('ResizeObserver' in window)) return
+    const ro = new ResizeObserver(set)
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300
         ${solid ? 'bg-hrc-cream/92 backdrop-blur-md shadow-[0_1px_0_rgba(36,91,60,.12)]' : 'bg-transparent'}`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-3.5 sm:px-8">
-        <a href="#top" className="shrink-0" aria-label="HR Connect — top of page">
-          <Lockup className="h-8 sm:h-9" />
+      <div ref={barRef} className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+        <a href="#top" className="flex h-11 shrink-0 items-center" aria-label="HR Connect — top of page">
+          <Lockup className="h-7 min-[360px]:h-8 sm:h-9" />
         </a>
 
-        <nav className="hidden items-center gap-7 lg:flex">
+        <nav className="hidden items-center gap-5 lg:flex">
           {NAV.map(([label, id]) => (
             <a key={id} href={`#${id}`}
-               className="text-[13px] font-semibold text-hrc-ink/70 transition-colors hover:text-hrc-green">
+               className="inline-flex h-10 items-center px-1 text-[13px] font-semibold text-hrc-ink/70 transition-colors
+                          hover:text-hrc-green">
               {label}
             </a>
           ))}
           <a href="#join"
-             className="inline-flex items-center gap-1.5 rounded-full bg-hrc-green px-5 py-2.5 text-[13px]
+             className="ml-2 inline-flex h-10 items-center gap-1.5 rounded-full bg-hrc-green px-5 text-[13px]
                         font-bold text-white transition-colors hover:bg-hrc-green-mid">
             Become a member <ArrowRight className="h-3.5 w-3.5" />
           </a>
         </nav>
 
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="rounded-md p-2 text-hrc-green lg:hidden"
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          aria-expanded={open}
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        {/* below lg the fees stay one tap away without opening the menu */}
+        <div className="flex items-center gap-1.5 lg:hidden">
+          <a href="#membership" data-fees-pill
+             className="inline-flex h-10 items-center rounded-full border-2 border-hrc-green/25 px-4 text-[13px]
+                        font-bold text-hrc-green transition-colors hover:border-hrc-green/60">
+            <span className="sm:hidden">Fees</span>
+            <span className="hidden sm:inline">See membership fees</span>
+          </a>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="-mr-2 flex h-11 w-11 items-center justify-center rounded-md text-hrc-green"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -411,9 +485,77 @@ function Nav() {
 
 /* ─── Hero ────────────────────────────────────────────────────────────── */
 
-function Hero() {
+/* The first screen's answer to "what can I buy, and what does it cost": the four
+   bands and their fees, read from TIERS like the product section. It is a summary,
+   not a second rate card. Each band links to #membership and preselects itself
+   there, so the fee finder, the band card and the enquiry mailto all open on it. */
+function FeeSummary({ onPick }) {
+  // Two by two until xl: beside the lg photo panel, and on phones, four across is too
+  // narrow for "250 – 499 employees" on one line. From xl the four bands sit in a row.
   return (
-    <section id="top" className="relative overflow-hidden bg-hrc-cream pt-28 pb-16 sm:pt-32 lg:pt-36 lg:pb-24">
+    <div data-fee-summary
+         className="overflow-hidden rounded-2xl bg-white ring-1 ring-hrc-green/10 sm:max-w-lg xl:max-w-none
+                    shadow-[0_1px_2px_rgba(20,37,27,.05),0_18px_40px_-26px_rgba(20,37,27,.45)]">
+      <div className="flex items-center justify-between gap-4 border-b border-hrc-ink/8 px-4 py-1
+                      min-[360px]:px-5 sm:px-6 xl:px-5">
+        <div className="flex min-h-10 items-center gap-2 text-hrc-green">
+          <Mark className="h-3.5 w-auto shrink-0" />
+          <span className="text-[11px] font-extrabold uppercase tracking-[0.2em]">Annual company membership</span>
+        </div>
+        <a href="#membership" data-fee-link
+           className="group hidden min-h-10 shrink-0 items-center gap-1.5 text-[13px] font-bold text-hrc-green
+                      transition-colors hover:text-hrc-green-mid sm:inline-flex">
+          See membership fees
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </a>
+      </div>
+      <ul className="grid grid-cols-2 gap-px bg-hrc-ink/8 xl:grid-cols-4">
+        {TIERS.map((t) => (
+          <li key={t.id} className="bg-white">
+            <a href="#membership" data-band={t.id} onClick={() => onPick(t.id)}
+               aria-label={`${t.range} employees: ${eur(t.price)} per year`}
+               className="group flex h-full flex-col px-3 py-3.5 transition-colors hover:bg-hrc-sand/70
+                          focus-visible:bg-hrc-sand/70 min-[360px]:px-4 sm:px-6 sm:py-4 xl:px-5">
+              <span className="whitespace-nowrap text-[11px] font-semibold tabular-nums text-hrc-ink/65
+                               min-[360px]:text-[12px]">
+                {t.range} employees
+              </span>
+              <span className="mt-1.5 flex items-end justify-between gap-2">
+                <span className="text-[1.55rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green
+                                 sm:text-[1.7rem]">
+                  {eur(t.price)}
+                </span>
+                <ArrowRight className="mb-0.5 h-4 w-4 shrink-0 text-hrc-green/35 transition-all
+                                       group-hover:translate-x-0.5 group-hover:text-hrc-green" />
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+      <a href="#membership" data-fee-link
+         className="flex min-h-11 items-center justify-between border-t border-hrc-ink/8 px-4 text-[13px]
+                    font-bold text-hrc-green min-[360px]:px-5 sm:hidden">
+        See membership fees <ArrowRight className="h-4 w-4" />
+      </a>
+    </div>
+  )
+}
+
+/* The hero's sign-off line. Each half is kept whole, so on a narrow phone it breaks
+   at the dot rather than leaving "GamingMalta" on a line of its own. */
+function Attribution() {
+  return (
+    <>
+      <span className="whitespace-nowrap">A NEXT.io portfolio project</span> ·{' '}
+      <span className="whitespace-nowrap">Supported by GamingMalta</span>
+    </>
+  )
+}
+
+function Hero({ onPick }) {
+  return (
+    <section id="top" className="relative overflow-hidden bg-hrc-cream pt-24 pb-12 sm:pt-32 sm:pb-16 lg:pt-24 lg:pb-20
+                                xl:pt-28">
       {/* the brand's cream → amber wash */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -441,51 +583,56 @@ function Hero() {
           </div>
 
           <h1
-            className="animate-on-scroll mt-6 text-[2.6rem] font-extrabold leading-[1.02] tracking-tight
-                       text-hrc-green sm:text-6xl lg:text-[4.25rem]"
+            className="animate-on-scroll mt-5 text-[2.6rem] font-extrabold leading-[1.02] tracking-tight
+                       text-hrc-green sm:mt-6 sm:text-6xl lg:text-[4.25rem]"
             data-anim style={{ transitionDelay: '60ms' }}
           >
             The HR community<br />for iGaming.
           </h1>
 
-          <p className="animate-on-scroll mt-7 max-w-xl text-lg leading-relaxed text-hrc-ink/75"
+          {/* 16px on a phone (18px from sm) so the fee summary still makes the first screen */}
+          <p className="animate-on-scroll mt-5 max-w-xl text-base leading-relaxed text-pretty text-hrc-ink/75
+                        sm:mt-7 sm:text-lg lg:mt-6"
              data-anim style={{ transitionDelay: '120ms' }}>
             HR Connect is a business network for iGaming HR professionals — an omni-channel platform where
             members share experience, knowledge and connections. Supported by GamingMalta, we help iGaming
             organisations improve their People functions through peer-to-peer collaboration.
           </p>
 
-          <div className="animate-on-scroll mt-9 flex flex-wrap items-center gap-3"
+          {/* "See membership fees" moved into the fee summary below, as its link */}
+          <div className="animate-on-scroll mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 sm:mt-8 lg:mt-7"
                data-anim style={{ transitionDelay: '180ms' }}>
             <a href="#join"
                className="inline-flex items-center gap-2 rounded-full bg-hrc-green px-7 py-3.5 text-sm
                           font-bold text-white shadow-lg shadow-hrc-green/20 transition-colors hover:bg-hrc-green-mid">
               Become a member <ArrowRight className="h-4 w-4" />
             </a>
-            <a href="#membership"
-               className="inline-flex items-center gap-2 rounded-full border-2 border-hrc-green/25 px-7 py-3.5
-                          text-sm font-bold text-hrc-green transition-colors hover:border-hrc-green/60">
-              See membership fees
-            </a>
+            <p className="hidden text-[13px] font-semibold text-hrc-ink/65 sm:block">
+              <Attribution />
+            </p>
           </div>
 
-          <p className="animate-on-scroll mt-7 text-[13px] font-semibold text-hrc-ink/45"
-             data-anim style={{ transitionDelay: '220ms' }}>
-            A NEXT.io portfolio project · Supported by GamingMalta
+          <div className="animate-on-scroll mt-7 sm:mt-8 lg:mt-7" data-anim style={{ transitionDelay: '220ms' }}>
+            <FeeSummary onPick={onPick} />
+          </div>
+
+          <p className="animate-on-scroll mt-5 text-[13px] font-semibold text-hrc-ink/65 sm:hidden"
+             data-anim style={{ transitionDelay: '240ms' }}>
+            <Attribution />
           </p>
         </div>
 
         {/* proof strip: a solid card over the photo edge. The hairlines are the green/10
             gap over an opaque cream backing, so they read the same over cream and photo */}
-        <div className="animate-on-scroll mt-16 overflow-hidden rounded-2xl bg-hrc-cream ring-1 ring-hrc-green/10
-                        shadow-[0_1px_2px_rgba(20,37,27,.05),0_22px_48px_-30px_rgba(20,37,27,.5)] lg:mt-20"
+        <div className="animate-on-scroll mt-10 overflow-hidden rounded-2xl bg-hrc-cream ring-1 ring-hrc-green/10
+                        shadow-[0_1px_2px_rgba(20,37,27,.05),0_22px_48px_-30px_rgba(20,37,27,.5)] sm:mt-14 lg:mt-16"
              data-anim style={{ transitionDelay: '260ms' }}>
           <div className="grid grid-cols-2 gap-px bg-hrc-green/10 lg:grid-cols-4">
             {STATS.map((s) => (
               <div key={s.label} className="bg-hrc-cream px-5 py-6 sm:px-7 sm:py-7">
                 <div className="text-3xl font-extrabold tracking-tight tabular-nums text-hrc-green sm:text-4xl">{s.value}</div>
                 <div className="mt-1.5 text-[13px] font-bold text-hrc-ink/80">{s.label}</div>
-                <div className="mt-0.5 text-[11.5px] leading-snug text-hrc-ink/45">{s.note}</div>
+                <div className="mt-0.5 text-[11.5px] leading-snug text-hrc-ink/65">{s.note}</div>
               </div>
             ))}
           </div>
@@ -507,19 +654,20 @@ function About() {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <SectionHead
           tone="dark"
+          size="statement"
           eyebrow="What is HR Connect"
           title={MISSION.slice(0, cut)}
           lead={MISSION.slice(cut).trim()}
         />
 
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:gap-6 lg:grid-cols-3">
           {PILLARS.map((p, i) => (
             <div key={p.title}
                  className="animate-on-scroll corner-cut bg-white/[0.055] p-7 ring-1 ring-inset ring-white/10"
                  data-anim style={{ transitionDelay: `${100 + i * 70}ms` }}>
               <p.icon className="h-6 w-6 text-hrc-amber" strokeWidth={2} />
               <h3 className="mt-5 text-lg font-extrabold text-white">{p.title}</h3>
-              <p className="mt-2.5 text-[14.5px] leading-relaxed text-white/60">{p.body}</p>
+              <p className="mt-2.5 text-[14.5px] leading-relaxed text-white/60">{tie(p.body)}</p>
             </div>
           ))}
         </div>
@@ -540,7 +688,7 @@ function Audience() {
           lead="Membership is a company membership: your named representatives share the seats, so the
                 community keeps working when one person is out of office."
         />
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:gap-6 lg:grid-cols-3">
           {AUDIENCE.map((a, i) => (
             <div key={a.tag}
                  className="animate-on-scroll relative overflow-hidden rounded-2xl bg-white p-7
@@ -549,11 +697,13 @@ function Audience() {
               <div className="absolute right-0 top-0 h-16 w-16 bg-hrc-amber/12"
                    style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }} />
               <a.icon className="relative h-6 w-6 text-hrc-green" strokeWidth={2} />
-              <div className="relative mt-5 text-[11px] font-extrabold uppercase tracking-[0.2em] text-hrc-amber-deep">
+              {/* amber chip, deep-green type: amber-deep type on white read at 2.2:1 */}
+              <div className="hex-clip-sm relative mt-5 inline-block bg-hrc-amber px-3.5 py-1 text-[10.5px] font-extrabold
+                              uppercase tracking-[0.16em] text-hrc-green-deep">
                 {a.tag}
               </div>
-              <h3 className="relative mt-1.5 text-xl font-extrabold text-hrc-green">{a.title}</h3>
-              <p className="relative mt-3 text-[14.5px] leading-relaxed text-hrc-ink/65">{a.body}</p>
+              <h3 className="relative mt-3 text-xl font-extrabold text-hrc-green">{a.title}</h3>
+              <p className="relative mt-3 text-[14.5px] leading-relaxed text-hrc-ink/70">{tie(a.body)}</p>
             </div>
           ))}
         </div>
@@ -588,7 +738,7 @@ function Benefits() {
               </div>
               <div className="pt-0.5 lg:pt-0">
                 <h3 className="text-balance text-[15.5px] font-extrabold text-hrc-green">{b.title}</h3>
-                <p className="mt-1.5 text-[14px] leading-relaxed text-hrc-ink/65">{b.body}</p>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-hrc-ink/70">{tie(b.body)}</p>
               </div>
             </div>
           ))}
@@ -600,9 +750,9 @@ function Benefits() {
 
 /* ─── Membership fees + fee finder ────────────────────────────────────── */
 
-function Membership() {
+function Membership({ picked, setPicked }) {
+  // `picked` lives in App so the hero's fee summary can preselect a band here
   const [headcount, setHeadcount] = useState('')
-  const [picked, setPicked] = useState(null)
 
   const typed = headcount.trim() === '' ? NaN : Number(headcount)
   const matched = useMemo(() => tierForHeadcount(typed), [typed])
@@ -611,7 +761,7 @@ function Membership() {
 
   const choose = useCallback((id) => {
     setPicked((prev) => (prev === id ? null : id))
-  }, [])
+  }, [setPicked])
 
   return (
     <section id="membership" className="bg-hrc-sand py-20 sm:py-28">
@@ -668,7 +818,7 @@ function Membership() {
                   </div>
                 </>
               ) : (
-                <div className="text-sm font-medium text-white/45">
+                <div className="text-sm font-medium text-pretty text-white/70">
                   Enter your Malta headcount, or pick a band below.
                 </div>
               )}
@@ -711,7 +861,7 @@ function Membership() {
                   <div className="text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green sm:text-[2rem]">
                     {eur(t.price)}
                   </div>
-                  <div className="mt-1.5 text-[12px] font-semibold text-hrc-ink/45 sm:text-[12.5px]">per year</div>
+                  <div className="mt-1.5 text-[12px] font-semibold text-hrc-ink/65 sm:text-[12.5px]">per year</div>
                 </div>
 
                 <ul className="flex-1 space-y-2 border-t border-hrc-ink/8 px-4 py-3.5 sm:space-y-2.5 sm:px-6 sm:py-5">
@@ -727,7 +877,7 @@ function Membership() {
 
                 <div className={`flex items-center gap-1.5 border-t border-hrc-ink/8 px-4 py-3 text-[12px] font-extrabold
                                  transition-colors sm:px-6 sm:py-3.5 sm:text-[12.5px]
-                                ${on ? 'bg-hrc-green/[0.07] text-hrc-green' : 'text-hrc-green/55 group-hover:text-hrc-green'}`}>
+                                ${on ? 'bg-hrc-green/[0.07] text-hrc-green' : 'text-hrc-green/80 group-hover:text-hrc-green'}`}>
                   {on
                     ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> Selected</>
                     : <>Select this band <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>}
@@ -752,7 +902,7 @@ function Membership() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-5 border-t border-hrc-ink/8 bg-hrc-sand/45
                           px-5 py-5 sm:px-7 sm:py-6">
-            <p className="max-w-xl text-[14.5px] leading-relaxed text-hrc-ink/65">
+            <p className="max-w-xl text-[14.5px] leading-relaxed text-pretty text-hrc-ink/70">
               Membership runs for the calendar year and covers your whole People team through your named
               representatives. Not sure which band you fall into? We will confirm it with you.
             </p>
@@ -779,24 +929,25 @@ function New2027() {
         <SectionHead
           tone="dark"
           eyebrow="New for 2027"
-          title="Four things members get next year that they didn’t in 2026."
+          title={'Four things members get next\u00a0year that they didn’t in 2026.'}   /* no-break space: balance split "next / year" */
           lead="The programme keeps evolving from member feedback. These formats are new for 2027."
         />
-        <div className="mt-14 space-y-4">
+        {/* two by two from lg: full-width rows left the right third of every card
+            empty on desktop (below lg a full-width card reads well). The tag leads each
+            card, so the title and body always start on the same line across a row. */}
+        <div className="mt-12 grid gap-4 sm:mt-14 lg:grid-cols-2 lg:gap-5">
           {NEW_2027.map((n, i) => (
             <div key={n.title}
-                 className="animate-on-scroll relative overflow-hidden rounded-xl bg-hrc-green/35 p-7 pl-9
-                            ring-1 ring-inset ring-white/10 sm:p-8 sm:pl-11"
-                 data-anim style={{ transitionDelay: `${i * 70}ms` }}>
+                 className="animate-on-scroll relative overflow-hidden rounded-xl bg-hrc-green/35 p-6 pl-8
+                            ring-1 ring-inset ring-white/10 sm:p-8 sm:pl-10"
+                 data-anim style={{ transitionDelay: `${(i % 2) * 70}ms` }}>
               <div className="absolute inset-y-0 left-0 w-1.5 bg-hrc-amber" />
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <h3 className="text-xl font-extrabold text-hrc-amber sm:text-2xl">{n.title}</h3>
-                <span className="hex-clip-sm shrink-0 bg-hrc-amber px-4 py-1.5 text-[10.5px] font-extrabold
-                                 uppercase tracking-[0.14em] text-hrc-green-deep">
-                  {n.tag}
-                </span>
-              </div>
-              <p className="mt-3 max-w-4xl text-[15px] leading-relaxed text-white/75">{n.body}</p>
+              <span className="hex-clip-sm inline-block bg-hrc-amber px-4 py-1.5 text-[10.5px] font-extrabold
+                               uppercase tracking-[0.14em] text-hrc-green-deep">
+                {n.tag}
+              </span>
+              <h3 className="mt-4 text-xl font-extrabold text-balance text-hrc-amber sm:text-2xl">{n.title}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/75">{tie(n.body)}</p>
             </div>
           ))}
         </div>
@@ -813,7 +964,7 @@ const KIND = {
   live:   { Icon: MapPin,        text: 'text-[13.5px] font-bold text-hrc-green', icon: 'text-hrc-amber-deep' },
   plan:   { Icon: CalendarCheck, text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
   survey: { Icon: BarChart3,     text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
-  online: { Icon: Video,         text: 'text-[13px] text-hrc-ink/55',            icon: 'text-hrc-green/50' },
+  online: { Icon: Video,         text: 'text-[13px] text-hrc-ink/65',            icon: 'text-hrc-green/50' },
 }
 
 /* The year as four quarters of three months, matching how agendas are shared. */
@@ -830,7 +981,7 @@ function Programme() {
         />
 
         <div className="animate-on-scroll mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] font-semibold
-                        text-hrc-ink/60" data-anim>
+                        text-hrc-ink/70" data-anim>
           <span className="flex items-center gap-2">
             <span className="hex-clip h-3.5 w-4 bg-hrc-amber" aria-hidden="true" /> In-person in Malta
           </span>
@@ -850,7 +1001,7 @@ function Programme() {
                  data-anim style={{ transitionDelay: `${q * 70}ms` }}>
               <div className="flex items-baseline justify-between border-b border-hrc-ink/8 px-4 py-3.5 sm:px-5">
                 <span className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-hrc-green">Q{q + 1}</span>
-                <span className="text-[12px] font-semibold text-hrc-ink/40">{months[0].m} – {months[2].m}</span>
+                <span className="text-[12px] font-semibold text-hrc-ink/65">{months[0].m} – {months[2].m}</span>
               </div>
               {months.map((c, r) => {
                 const live = c.items.some(([k]) => k === 'live')
@@ -881,7 +1032,7 @@ function Programme() {
           ))}
         </div>
 
-        <p className="animate-on-scroll mt-8 text-[13px] text-hrc-ink/45" data-anim>
+        <p className="animate-on-scroll mt-8 text-[13px] text-pretty text-hrc-ink/65" data-anim>
           Topics and venues are confirmed with members through the year — agendas are shared quarterly.
         </p>
       </div>
@@ -898,7 +1049,7 @@ function Members() {
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="animate-on-scroll flex flex-wrap items-baseline gap-x-4 gap-y-1" data-anim>
           <Eyebrow>Our proud members</Eyebrow>
-          <p className="text-[13.5px] text-hrc-ink/55">
+          <p className="text-[13.5px] text-hrc-ink/65">
             {MEMBERS.length} companies — operators, suppliers, studios, affiliates and the regulator.
           </p>
         </div>
@@ -943,11 +1094,11 @@ function Testimonials() {
                     data-anim style={{ transitionDelay: `${(i % 3) * 80}ms` }}>
               <Quote className="h-6 w-6 text-hrc-amber" fill="currentColor" strokeWidth={0} />
               <blockquote className="mt-4 text-[14.5px] leading-relaxed text-hrc-ink/75">
-                {t.quote}
+                {tie(t.quote)}
               </blockquote>
               <figcaption className="mt-5 border-t border-hrc-ink/10 pt-4">
                 <div className="text-[14.5px] font-extrabold text-hrc-green">{t.name}</div>
-                <div className="text-[13px] font-semibold text-hrc-ink/45">{t.org}</div>
+                <div className="text-[13px] font-semibold text-hrc-ink/65">{t.org}</div>
               </figcaption>
             </figure>
           ))}
@@ -968,25 +1119,27 @@ function Join() {
         <div className="animate-on-scroll flex justify-center" data-anim>
           <Mark className="h-12 w-auto text-hrc-green" />
         </div>
-        <h2 className="animate-on-scroll mt-8 text-3xl font-extrabold leading-[1.1] tracking-tight
+        <h2 className="animate-on-scroll mt-8 text-3xl font-extrabold leading-[1.1] tracking-tight text-balance
                        text-hrc-green sm:text-5xl" data-anim style={{ transitionDelay: '60ms' }}>
           Join the HR community<br className="hidden sm:block" /> for iGaming.
         </h2>
-        <p className="animate-on-scroll mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-hrc-ink/70"
+        <p className="animate-on-scroll mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-hrc-ink/70"
            data-anim style={{ transitionDelay: '120ms' }}>
           Tell us your company and your Malta headcount and we will confirm your band, send the membership
           details and get your representatives into the next session.
         </p>
-        <div className="animate-on-scroll mt-9 flex flex-wrap justify-center gap-3"
+        {/* stacked on a phone the two buttons share one width, rather than two ragged pills */}
+        <div className="animate-on-scroll mx-auto mt-9 flex max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row
+                        sm:flex-wrap sm:justify-center"
              data-anim style={{ transitionDelay: '180ms' }}>
           <a href={buildMailto(null)}
-             className="inline-flex items-center gap-2 rounded-full bg-hrc-green px-8 py-4 text-sm font-bold
-                        text-white shadow-lg shadow-hrc-green/20 transition-colors hover:bg-hrc-green-mid">
+             className="inline-flex items-center justify-center gap-2 rounded-full bg-hrc-green px-8 py-4 text-sm
+                        font-bold text-white shadow-lg shadow-hrc-green/20 transition-colors hover:bg-hrc-green-mid">
             <Mail className="h-4 w-4" /> Enquire about membership
           </a>
           <a href="#membership"
-             className="inline-flex items-center gap-2 rounded-full border-2 border-hrc-green/25 px-8 py-4
-                        text-sm font-bold text-hrc-green transition-colors hover:border-hrc-green/60">
+             className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-hrc-green/25 px-8
+                        py-4 text-sm font-bold text-hrc-green transition-colors hover:border-hrc-green/60">
             Check your fee band
           </a>
         </div>
@@ -1002,13 +1155,15 @@ function Footer() {
                       md:flex-row md:justify-between md:text-left">
         <img src={`${base}logos/hrconnect-lockup-amber.svg`} alt="HR Connect — NEXT.io | GAMING MALTA"
              className="h-9 w-auto" />
-        <div className="space-y-1 text-[13px] leading-relaxed text-white/45">
+        <div className="text-[13px] leading-relaxed text-white/60">
           <p>A NEXT.io portfolio project, supported by GamingMalta.</p>
           <p>
-            <a href={`mailto:${CONTACT}`} className="font-semibold text-white/70 hover:text-hrc-amber">
+            {/* a 40px-tall target for a thumb, still set as inline text */}
+            <a href={`mailto:${CONTACT}`}
+               className="inline-flex min-h-10 items-center font-semibold text-white/80 hover:text-hrc-amber">
               {CONTACT}
             </a>
-            <span className="mx-2 text-white/20">·</span>
+            <span className="mx-2 text-white/30" aria-hidden="true">·</span>
             HR Connect 2027
           </p>
         </div>
@@ -1019,18 +1174,25 @@ function Footer() {
 
 /* ─── App ─────────────────────────────────────────────────────────────── */
 
+/* Section order: the product comes early. The fee summary in the hero states the
+   bands on the first screen; "What you get" then "Membership" follow the logo wall,
+   so value and fee stay together, and the mission ("What is HR Connect") and
+   "Who it's for" follow the product. The hero already says what HR Connect is and
+   who it serves, so neither is needed to read the fees. */
 export default function App() {
   useScrollAnimation()
+  useLandOnHash()
+  const [picked, setPicked] = useState(null)   // the band chosen in the hero or on a card
   return (
     <>
       <Nav />
       <main>
-        <Hero />
+        <Hero onPick={setPicked} />
         <Members />
+        <Benefits />
+        <Membership picked={picked} setPicked={setPicked} />
         <About />
         <Audience />
-        <Benefits />
-        <Membership />
         <New2027 />
         <Programme />
         <Testimonials />

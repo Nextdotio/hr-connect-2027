@@ -22,8 +22,9 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection { background: #ffce33; color: #14251b; }
-  /* keep anchored headings clear of the fixed header */
-  section[id] { scroll-margin-top: 5.5rem; }
+  /* Anchored sections land flush under the fixed header. Its bar changes height by
+     breakpoint, so Nav measures it into --nav-h; the fallback covers the first paint. */
+  section[id] { scroll-margin-top: var(--nav-h, 4.25rem); }
 }
 
 @layer utilities {
@@ -53,6 +54,7 @@
 .marquee-track:hover { animation-play-state: paused; }
 
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   .marquee-track { animation: none; }
   .animate-on-scroll { opacity: 1; transform: none; transition: none; }
 }

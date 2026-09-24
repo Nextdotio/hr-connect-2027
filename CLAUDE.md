@@ -70,3 +70,21 @@ See `README.md` for the full list.
 - The hero photo is the HR Connect session at NEXT Summit Valletta, reused from
   `next-summit-valletta/public/images/hr-connect.jpg` and cropped above the
   burned-in sponsor bar (which starts at y=1429 in that file).
+
+## Navigation (24 Sep 2026)
+
+Stuart: "it's hard to find products when i have to scroll right down for them".
+
+- The first screen carries the product: `FeeSummary` in the hero lists the four
+  `TIERS` bands and fees, read from the array (nothing new is claimed there).
+  Each band links to `#membership` and preselects itself (`picked` lives in
+  `App`), so the fee finder, the band card and the enquiry mailto open on it.
+  Two by two below xl, so it clears the lg photo panel; four across from xl.
+- Section order: hero → members → What you get → Membership → What is HR
+  Connect → Who it's for → New for 2027 → Programme → testimonials → join.
+  `NAV` follows the page order, Membership first. Below lg the header carries
+  a "Fees" pill to `#membership`, and the phone menu lists Membership.
+- Anchors land by measurement: `Nav` measures its bar into `--nav-h`, which
+  `section[id]` uses as `scroll-margin-top`. Never hardcode a nav offset.
+  First-load deep links (`…/#membership`) are landed by `useLandOnHash` once
+  React has rendered.
