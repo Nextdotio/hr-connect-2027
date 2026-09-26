@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Users, CalendarDays, BarChart3, GraduationCap, UserCheck, Utensils,
-  Ticket, Mail, ArrowRight, Quote, Check, Sparkles, MessageSquare,
+  Ticket, Mail, ArrowRight, Quote, Check, MessageSquare,
   Presentation, Globe2, MapPin, Building2, Menu, X, Search, Video, CalendarCheck,
 } from 'lucide-react'
+import { usePresent, PresentMode, CopyLinkButton } from './PresentMode.jsx'
 
 const base = import.meta.env.BASE_URL
 const CONTACT = 'sales@next.io'   // SALES DESK: change here to route enquiries elsewhere
@@ -248,9 +249,83 @@ const TESTIMONIALS = [
   },
 ]
 
+/* Section copy. The page and the Present deck both read these, so a slide never
+   re-types a line from the page, and an edit here reaches both. */
+const HERO = { eyebrow: 'The one and only', title: ['The HR community', 'for iGaming.'] }
+
+const MEMBERS_HEAD = {
+  eyebrow: 'Our proud members',
+  line: `${MEMBERS.length} companies — operators, suppliers, studios, affiliates and the regulator.`,
+}
+
+const HEADS = {
+  benefits: {
+    eyebrow: 'What you get',
+    title: 'One annual fee. Everything the community does.',
+    lead: 'Every band receives the full programme — the only things that change with company size are ' +
+          'the number of named representatives and the fee.',
+  },
+  membership: {
+    eyebrow: 'Membership',
+    title: 'The size of your Malta organisation sets your fee.',
+    lead: 'Annual company membership. Four bands, published pricing, no negotiation needed — find your ' +
+          'band below. Membership is priced on organisation size — benefits reach your whole Malta team.',
+  },
+  about: { eyebrow: 'What is HR Connect' },   // the headline and lead are MISSION, split at its first sentence
+  audience: {
+    eyebrow: 'Who it\'s for',
+    title: 'Built for the People teams behind iGaming.',
+    lead: 'Membership is a company membership: your named representatives share the seats, so the ' +
+          'community keeps working when one person is out of office.',
+  },
+  new2027: {
+    eyebrow: 'New for 2027',
+    title: 'Four things members get next\u00a0year that they didn’t in 2026.',   /* no-break space: balance split "next / year" */
+    lead: 'The programme keeps evolving from member feedback. These formats are new for 2027.',
+  },
+  programme: {
+    eyebrow: 'Programme',
+    title: 'The 2027 member calendar.',
+    lead: 'A monthly rhythm online, three in-person moments in Malta, and benchmarking through the year.',
+  },
+  testimonials: { eyebrow: 'What they say', title: 'In the members’ own words.' },
+}
+
+const PROGRAMME_NOTE =
+  'Topics and venues are confirmed with members through the year — agendas are shared quarterly.'
+
+/* The membership terms, shown once under the band cards and on every band slide. */
+const TERMS_YEAR =
+  'Membership runs for the calendar year and covers your whole People team through your named representatives.'
+const TERMS_CONFIRM = 'Not sure which band you fall into? We will confirm it with you.'
+
+const JOIN = {
+  title: ['Join the HR community', 'for iGaming.'],
+  body: 'Tell us your company and your Malta headcount and we will confirm your band, send the membership ' +
+        'details and get your representatives into the next session.',
+}
+
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
 
 const eur = (n) => '€' + n.toLocaleString('en-US')
+
+/* The lowest band's fee: "from €2,500" on the Present cover and family slide. */
+const FROM_PRICE = Math.min(...TIERS.map((t) => t.price))
+
+/* A band's name, as the hero's fee summary and the deck show it. */
+const bandName = (t) => `${t.range} employees`
+
+/* A band's details line: the fee finder's readout and the deck's join slide. */
+const bandDetail = (t) => `${t.range} employees · ${t.reps} representatives · per year`
+
+/* Each band card's anchor: #band-1-79, #band-80-249, #band-250-499, #band-500-plus.
+   Read from the range, so it stays stable while the band does. The band's Present
+   slide uses the same id, so a card link and a slide link agree. */
+const bandAnchor = (t) =>
+  'band-' + t.range.replace('+', ' plus').split(/[^0-9a-z]+/i).filter(Boolean).join('-').toLowerCase()
+
+/* The enquiry button's label, on the membership section and the deck's join slide. */
+const enquireLabel = (t) => (t ? `Enquire — ${eur(t.price)}` : 'Enquire about membership')
 
 /* Typesetting only: ties a text's last two words with a no-break space, so a card
    never ends on a lone word. (CSS `text-wrap: pretty` is a heuristic in Chrome and
@@ -333,18 +408,39 @@ function useLandOnHash() {
   }, [])
 }
 
+/* A band link (…/#band-80-249, from Copy link on a band card or slide) opens on
+   that band: it preselects itself exactly as the hero's band links do, so the fee
+   finder, the band card and the enquiry mailto all read it. useLandOnHash does the
+   scrolling; the card's .jump-card margin keeps it clear of the bar. */
+function useBandFromHash(setPicked) {
+  useEffect(() => {
+    const read = () => {
+      const id = decodeURIComponent(window.location.hash.slice(1))
+      const t = TIERS.find((b) => bandAnchor(b) === id)
+      if (t) setPicked(t.id)
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [setPicked])
+}
+
 /* ─── Small building blocks ───────────────────────────────────────────── */
 
-function Eyebrow({ children, tone = 'green' }) {
+/* `size="lg"` is the Present deck's eyebrow: the same mark and tracking, a step up. */
+function Eyebrow({ children, tone = 'green', size = 'sm' }) {
   const tones = {
     green: 'text-hrc-green',
     amber: 'text-hrc-amber',
     cream: 'text-hrc-amber',
   }
+  const lg = size === 'lg'
   return (
     <div className={`flex items-center gap-2.5 ${tones[tone]}`}>
-      <Mark className="h-4 w-auto shrink-0" />
-      <span className="text-[11px] font-extrabold uppercase tracking-[0.22em]">{children}</span>
+      <Mark className={`${lg ? 'h-5' : 'h-4'} w-auto shrink-0`} />
+      <span className={`${lg ? 'text-[12px] sm:text-[13px]' : 'text-[11px]'} font-extrabold uppercase tracking-[0.22em]`}>
+        {children}
+      </span>
     </div>
   )
 }
@@ -391,10 +487,18 @@ const NAV = [
   ['Programme', 'programme'],
 ]
 
-function Nav() {
+/* The nav's Present button. Cream-backed, so it reads over the hero photo panel too.
+   No display utility in here: each use adds its own (`hidden` and `inline-flex` on one
+   element resolve by stylesheet order, and inline-flex won). */
+const PRESENT_PILL =
+  'h-10 items-center gap-1.5 rounded-full border-2 border-hrc-green/25 bg-hrc-cream/85 px-4 ' +
+  'text-[13px] font-bold text-hrc-green transition-colors hover:border-hrc-green/60'
+
+function Nav({ onPresent }) {
   const [solid, setSolid] = useState(false)
   const [open, setOpen] = useState(false)
   const barRef = useRef(null)
+  const menuBtnRef = useRef(null)
 
   useEffect(() => {
     const onScroll = () => setSolid(window.scrollY > 24)
@@ -436,6 +540,9 @@ function Nav() {
               {label}
             </a>
           ))}
+          <button type="button" onClick={() => onPresent('')} data-present-open className={`inline-flex ${PRESENT_PILL}`}>
+            <Presentation className="h-4 w-4" aria-hidden="true" /> Present
+          </button>
           <a href="#join"
              className="ml-2 inline-flex h-10 items-center gap-1.5 rounded-full bg-hrc-green px-5 text-[13px]
                         font-bold text-white transition-colors hover:bg-hrc-green-mid">
@@ -443,7 +550,8 @@ function Nav() {
           </a>
         </nav>
 
-        {/* below lg the fees stay one tap away without opening the menu */}
+        {/* below lg the fees stay one tap away without opening the menu; Present joins
+            them from md, and sits in the menu on a phone */}
         <div className="flex items-center gap-1.5 lg:hidden">
           <a href="#membership" data-fees-pill
              className="inline-flex h-10 items-center rounded-full border-2 border-hrc-green/25 px-4 text-[13px]
@@ -451,7 +559,12 @@ function Nav() {
             <span className="sm:hidden">Fees</span>
             <span className="hidden sm:inline">See membership fees</span>
           </a>
+          <button type="button" onClick={() => onPresent('')} data-present-open
+                  className={`${PRESENT_PILL} hidden md:inline-flex`}>
+            <Presentation className="h-4 w-4" aria-hidden="true" /> Present
+          </button>
           <button
+            ref={menuBtnRef}
             onClick={() => setOpen((v) => !v)}
             className="-mr-2 flex h-11 w-11 items-center justify-center rounded-md text-hrc-green"
             aria-label={open ? 'Close menu' : 'Open menu'}
@@ -471,6 +584,13 @@ function Nav() {
                 {label}
               </a>
             ))}
+            {/* focus moves to the menu button first, so closing the deck returns there */}
+            <button type="button" data-present-open data-present-menu
+                    onClick={() => { menuBtnRef.current?.focus(); setOpen(false); onPresent('') }}
+                    className="flex items-center gap-2 border-b border-hrc-green/10 py-3 text-left text-sm font-semibold
+                               text-hrc-ink/80 md:hidden">
+              <Presentation className="h-4 w-4 text-hrc-green" aria-hidden="true" /> Present
+            </button>
             <a href="#join" onClick={() => setOpen(false)}
                className="mt-4 mb-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-hrc-green
                           px-5 py-3 text-sm font-bold text-white">
@@ -579,7 +699,7 @@ function Hero({ onPick }) {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <div className="max-w-2xl">
           <div className="animate-on-scroll" data-anim>
-            <Eyebrow>The one and only</Eyebrow>
+            <Eyebrow>{HERO.eyebrow}</Eyebrow>
           </div>
 
           <h1
@@ -587,7 +707,7 @@ function Hero({ onPick }) {
                        text-hrc-green sm:mt-6 sm:text-6xl lg:text-[4.25rem]"
             data-anim style={{ transitionDelay: '60ms' }}
           >
-            The HR community<br />for iGaming.
+            {HERO.title[0]}<br />{HERO.title[1]}
           </h1>
 
           {/* 16px on a phone (18px from sm) so the fee summary still makes the first screen */}
@@ -655,7 +775,7 @@ function About() {
         <SectionHead
           tone="dark"
           size="statement"
-          eyebrow="What is HR Connect"
+          eyebrow={HEADS.about.eyebrow}
           title={MISSION.slice(0, cut)}
           lead={MISSION.slice(cut).trim()}
         />
@@ -682,12 +802,7 @@ function Audience() {
   return (
     <section className="bg-hrc-sand py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          eyebrow="Who it's for"
-          title="Built for the People teams behind iGaming."
-          lead="Membership is a company membership: your named representatives share the seats, so the
-                community keeps working when one person is out of office."
-        />
+        <SectionHead {...HEADS.audience} />
         <div className="mt-14 grid gap-5 sm:gap-6 lg:grid-cols-3">
           {AUDIENCE.map((a, i) => (
             <div key={a.tag}
@@ -718,12 +833,7 @@ function Benefits() {
   return (
     <section className="bg-hrc-cream py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          eyebrow="What you get"
-          title="One annual fee. Everything the community does."
-          lead="Every tier receives the full programme — the only things that change with company size are
-                the number of named representatives and the fee."
-        />
+        <SectionHead {...HEADS.benefits} />
         {/* A wrapping row centres a short last row (7 items: 4 + 3 on desktop, 2-2-2-1
             on tablet), so no deliverable sits alone beside empty columns. Four across,
             the badge moves above the text so the titles keep to one line. */}
@@ -750,13 +860,51 @@ function Benefits() {
 
 /* ─── Membership fees + fee finder ────────────────────────────────────── */
 
-function Membership({ picked, setPicked }) {
-  // `picked` lives in App so the hero's fee summary can preselect a band here
-  const [headcount, setHeadcount] = useState('')
+/* What changes between bands: the seats, and one free NEXT Summit Valletta pass per
+   representative. The band card and the band's Present slide both render this, so
+   the pass count can never drift from the seat count. `big` is the slide's scale. */
+function BandLines({ t, big = false }) {
+  const row = big
+    ? 'gap-3 text-[17px] sm:text-lg'
+    : 'gap-1.5 text-[12.5px] sm:gap-2.5 sm:text-[13.5px]'
+  const icon = big ? 'mt-0.5 h-5 w-5' : 'mt-0.5 h-3.5 w-3.5 sm:mt-px sm:h-4 sm:w-4'
+  return (
+    <>
+      <li className={`flex font-bold leading-snug text-hrc-ink/85 ${row}`}>
+        <UserCheck className={`shrink-0 text-hrc-green ${icon}`} strokeWidth={2.2} />
+        {t.reps} representatives
+      </li>
+      <li className={`flex leading-snug text-hrc-ink/70 ${row}`}>
+        <Ticket className={`shrink-0 text-hrc-green ${icon}`} strokeWidth={2.2} />
+        <span className="text-balance">{t.reps} free NEXT Summit Valletta passes</span>
+      </li>
+    </>
+  )
+}
 
+/* What every band shares (TIER_INCLUDES), listed once: under the band cards, and on
+   the deck's membership and band slides. */
+function IncludesList({ className = '', item = 'text-[13.5px]', icon = 'mt-0.5 h-4 w-4' }) {
+  return (
+    <ul className={className}>
+      {TIER_INCLUDES.map((inc) => (
+        <li key={inc} className={`flex gap-2.5 font-semibold leading-snug text-hrc-ink/75 ${item}`}>
+          <Check className={`shrink-0 text-hrc-green ${icon}`} strokeWidth={3} />
+          <span className="text-balance">{inc}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/* Quiet tools beside the membership head: Present and Copy link. */
+const QUIET_PILL = 'min-h-10 rounded-full border-2 border-hrc-green/20 bg-white/70 px-4 text-[13px] ' +
+                   'text-hrc-green hover:border-hrc-green/50'
+
+function Membership({ picked, setPicked, headcount, setHeadcount, active, onPresent }) {
+  // `picked` and the headcount live in App, so the hero's fee summary and the Present
+  // deck read and set the same band as this section
   const typed = headcount.trim() === '' ? NaN : Number(headcount)
-  const matched = useMemo(() => tierForHeadcount(typed), [typed])
-  const active = picked ? TIERS.find((t) => t.id === picked) : matched
   const invalid = headcount.trim() !== '' && (!Number.isFinite(typed) || typed < 1)
 
   const choose = useCallback((id) => {
@@ -766,12 +914,16 @@ function Membership({ picked, setPicked }) {
   return (
     <section id="membership" className="bg-hrc-sand py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          eyebrow="Membership"
-          title="The size of your Malta organisation sets your fee."
-          lead="Annual company membership. Four bands, published pricing, no negotiation needed —
-                find your band below. Membership is priced on organisation size — benefits reach your whole Malta team."
-        />
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+          <SectionHead {...HEADS.membership} />
+          <div className="animate-on-scroll flex flex-wrap items-center gap-2" data-anim>
+            <button type="button" onClick={() => onPresent('membership')} data-present-open
+                    className={`inline-flex items-center gap-1.5 font-bold transition-colors ${QUIET_PILL}`}>
+              <Presentation className="h-4 w-4" aria-hidden="true" /> Present
+            </button>
+            <CopyLinkButton id="membership" title="Copy a link to the membership fees" size={QUIET_PILL} />
+          </div>
+        </div>
 
         {/* fee finder */}
         <div className="animate-on-scroll mt-12 overflow-hidden rounded-2xl bg-hrc-green shadow-xl shadow-hrc-green/15"
@@ -791,7 +943,7 @@ function Membership({ picked, setPicked }) {
                   value={headcount}
                   onChange={(e) => { setHeadcount(e.target.value); setPicked(null) }}
                   placeholder="e.g. 180"
-                  className="w-44 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 text-lg font-bold
+                  className="w-36 rounded-xl border-2 border-white/20 bg-white/10 px-4 py-3 text-lg font-bold sm:w-44
                              text-white placeholder:font-medium placeholder:text-white/35 outline-none
                              transition-colors focus:border-hrc-amber"
                 />
@@ -813,9 +965,7 @@ function Membership({ picked, setPicked }) {
                   <div className="mt-1.5 text-4xl font-extrabold tracking-tight tabular-nums text-hrc-amber sm:text-5xl">
                     {eur(active.price)}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-white/70">
-                    {active.range} employees · {active.reps} representatives · per year
-                  </div>
+                  <div className="mt-1 text-sm font-semibold text-white/70">{bandDetail(active)}</div>
                 </>
               ) : (
                 <div className="text-sm font-medium text-pretty text-white/70">
@@ -829,60 +979,77 @@ function Membership({ picked, setPicked }) {
         {/* band cards. Only the fee, the seats and the Valletta passes change between
             bands, so each card carries just those. The shared TIER_INCLUDES are listed
             once underneath instead of four times, which also keeps all four fees on one
-            phone screen (two by two) */}
+            phone screen (two by two). Each card is a select button plus a quiet strip
+            (Present, Copy link) outside it: a button cannot hold other buttons. */}
         <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-4">
           {TIERS.map((t, i) => {
             const on = active?.id === t.id
+            const anchor = bandAnchor(t)
             return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => choose(t.id)}
-                aria-pressed={on}
-                className={`animate-on-scroll group flex flex-col overflow-hidden rounded-2xl bg-white text-left
-                            transition-all duration-200
-                            ${on
-                              ? 'ring-2 ring-hrc-green shadow-xl shadow-hrc-green/15 -translate-y-1'
-                              : 'ring-1 ring-hrc-ink/8 hover:-translate-y-1 hover:ring-hrc-green/40'}`}
-                data-anim style={{ transitionDelay: `${i * 70}ms` }}
-              >
-                <div className={`px-4 pt-4 pb-3.5 transition-colors sm:px-6 sm:pt-6 sm:pb-5
-                                ${on ? 'bg-hrc-green' : 'bg-hrc-green-deep group-hover:bg-hrc-green'}`}>
-                  <div className="flex items-center gap-1.5 text-hrc-amber sm:gap-2">
-                    <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.4} />
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] sm:text-[11px] sm:tracking-[0.18em]">
-                      Employees
-                    </span>
+              // the anchor sits on a still wrapper: the card inside animates in, and a
+              // moving target would land a deep link short of the bar
+              <div key={t.id} id={anchor} className="jump-card flex">
+                <div className={`animate-on-scroll flex w-full flex-col overflow-hidden rounded-2xl bg-white
+                                 transition-all duration-200
+                                 ${on
+                                   ? 'ring-2 ring-hrc-green shadow-xl shadow-hrc-green/15 -translate-y-1'
+                                   : 'ring-1 ring-hrc-ink/8 hover:-translate-y-1 hover:ring-hrc-green/40'}`}
+                     data-anim style={{ transitionDelay: `${i * 70}ms` }}>
+                  <button
+                    type="button"
+                    onClick={() => choose(t.id)}
+                    aria-pressed={on}
+                    data-band-card={t.id}
+                    className="group flex flex-1 flex-col text-left focus-visible:outline-2 focus-visible:-outline-offset-2
+                               focus-visible:outline-hrc-green"
+                  >
+                    <div className={`w-full px-4 pt-4 pb-3.5 transition-colors sm:px-6 sm:pt-6 sm:pb-5
+                                    ${on ? 'bg-hrc-green' : 'bg-hrc-green-deep group-hover:bg-hrc-green'}`}>
+                      <div className="flex items-center gap-1.5 text-hrc-amber sm:gap-2">
+                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2.4} />
+                        <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] sm:text-[11px] sm:tracking-[0.18em]">
+                          Employees
+                        </span>
+                      </div>
+                      <div className="mt-1.5 text-xl font-extrabold tabular-nums text-white sm:mt-2 sm:text-2xl">{t.range}</div>
+                    </div>
+
+                    <div className="px-4 pt-4 pb-3.5 sm:px-6 sm:pt-5 sm:pb-5">
+                      <div className="text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green sm:text-[2rem]">
+                        {eur(t.price)}
+                      </div>
+                      <div className="mt-1.5 text-[12px] font-semibold text-hrc-ink/65 sm:text-[12.5px]">per year</div>
+                    </div>
+
+                    <ul className="w-full flex-1 space-y-2 border-t border-hrc-ink/8 px-4 py-3.5 sm:space-y-2.5 sm:px-6 sm:py-5">
+                      <BandLines t={t} />
+                    </ul>
+
+                    <div className={`flex w-full items-center gap-1.5 border-t border-hrc-ink/8 px-4 py-3 text-[12px] font-extrabold
+                                     transition-colors sm:px-6 sm:py-3.5 sm:text-[12.5px]
+                                    ${on ? 'bg-hrc-green/[0.07] text-hrc-green' : 'text-hrc-green/80 group-hover:text-hrc-green'}`}>
+                      {on
+                        ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> Selected</>
+                        : <>Select this band <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>}
+                    </div>
+                  </button>
+
+                  {/* quiet tools for a call: present this band, or send a link to it */}
+                  <div className="flex border-t border-hrc-ink/8 bg-hrc-sand/40">
+                    <button type="button" onClick={() => onPresent(anchor)} data-present-open
+                            aria-label={`Present the ${bandName(t)} band`} title="Present this band"
+                            className="inline-flex min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 text-[11.5px]
+                                       font-bold text-hrc-green/85 transition-colors hover:bg-hrc-green/[0.05]
+                                       hover:text-hrc-green sm:w-auto sm:flex-1 sm:px-3">
+                      <Presentation className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="hidden sm:inline">Present</span>
+                    </button>
+                    <span className="my-2.5 w-px shrink-0 bg-hrc-ink/10" aria-hidden="true" />
+                    <CopyLinkButton id={anchor} size="min-h-11 flex-1 justify-center px-2 text-[11.5px]"
+                                    className="text-hrc-green/85 hover:bg-hrc-green/[0.05] hover:text-hrc-green" />
                   </div>
-                  <div className="mt-1.5 text-xl font-extrabold tabular-nums text-white sm:mt-2 sm:text-2xl">{t.range}</div>
                 </div>
-
-                <div className="px-4 pt-4 pb-3.5 sm:px-6 sm:pt-5 sm:pb-5">
-                  <div className="text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green sm:text-[2rem]">
-                    {eur(t.price)}
-                  </div>
-                  <div className="mt-1.5 text-[12px] font-semibold text-hrc-ink/65 sm:text-[12.5px]">per year</div>
-                </div>
-
-                <ul className="flex-1 space-y-2 border-t border-hrc-ink/8 px-4 py-3.5 sm:space-y-2.5 sm:px-6 sm:py-5">
-                  <li className="flex gap-1.5 text-[12.5px] font-bold leading-snug text-hrc-ink/85 sm:gap-2.5 sm:text-[13.5px]">
-                    <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-hrc-green sm:mt-px sm:h-4 sm:w-4" strokeWidth={2.2} />
-                    {t.reps} representatives
-                  </li>
-                  <li className="flex gap-1.5 text-[12.5px] leading-snug text-hrc-ink/70 sm:gap-2.5 sm:text-[13.5px]">
-                    <Ticket className="mt-0.5 h-3.5 w-3.5 shrink-0 text-hrc-green sm:mt-px sm:h-4 sm:w-4" strokeWidth={2.2} />
-                    <span className="text-balance">{t.reps} free NEXT Summit Valletta passes</span>
-                  </li>
-                </ul>
-
-                <div className={`flex items-center gap-1.5 border-t border-hrc-ink/8 px-4 py-3 text-[12px] font-extrabold
-                                 transition-colors sm:px-6 sm:py-3.5 sm:text-[12.5px]
-                                ${on ? 'bg-hrc-green/[0.07] text-hrc-green' : 'text-hrc-green/80 group-hover:text-hrc-green'}`}>
-                  {on
-                    ? <><Check className="h-3.5 w-3.5" strokeWidth={3} /> Selected</>
-                    : <>Select this band <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></>}
-                </div>
-              </button>
+              </div>
             )
           })}
         </div>
@@ -891,26 +1058,18 @@ function Membership({ picked, setPicked }) {
         <div className="animate-on-scroll mt-5 overflow-hidden rounded-2xl bg-white ring-1 ring-hrc-ink/8 sm:mt-6" data-anim>
           <div className="px-5 py-5 sm:px-7 sm:py-6">
             <div className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-hrc-green">Every band includes</div>
-            <ul className="mt-4 grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {TIER_INCLUDES.map((inc) => (
-                <li key={inc} className="flex gap-2.5 text-[13.5px] font-semibold leading-snug text-hrc-ink/75">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-hrc-green" strokeWidth={3} />
-                  <span className="text-balance">{inc}</span>
-                </li>
-              ))}
-            </ul>
+            <IncludesList className="mt-4 grid gap-x-6 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-5 border-t border-hrc-ink/8 bg-hrc-sand/45
                           px-5 py-5 sm:px-7 sm:py-6">
             <p className="max-w-xl text-[14.5px] leading-relaxed text-pretty text-hrc-ink/70">
-              Membership runs for the calendar year and covers your whole People team through your named
-              representatives. Not sure which band you fall into? We will confirm it with you.
+              {TERMS_YEAR} {TERMS_CONFIRM}
             </p>
-            <a href={buildMailto(active)}
+            <a href={buildMailto(active)} data-enquire
                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-hrc-green px-7 py-3.5
                           text-sm font-bold text-white transition-colors hover:bg-hrc-green-mid">
               <Mail className="h-4 w-4" />
-              {active ? `Enquire — ${eur(active.price)}` : 'Enquire about membership'}
+              {enquireLabel(active)}
             </a>
           </div>
         </div>
@@ -926,12 +1085,7 @@ function New2027() {
     <section id="new-2027" className="relative overflow-hidden bg-hrc-green-deep py-20 sm:py-28">
       <MarkTexture className="text-hrc-amber" opacity={0.06} />
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          tone="dark"
-          eyebrow="New for 2027"
-          title={'Four things members get next\u00a0year that they didn’t in 2026.'}   /* no-break space: balance split "next / year" */
-          lead="The programme keeps evolving from member feedback. These formats are new for 2027."
-        />
+        <SectionHead tone="dark" {...HEADS.new2027} />
         {/* two by two from lg: full-width rows left the right third of every card
             empty on desktop (below lg a full-width card reads well). The tag leads each
             card, so the title and body always start on the same line across a row. */}
@@ -961,34 +1115,72 @@ function New2027() {
 /* How each kind of calendar item is marked. In-person moments carry the weight;
    the monthly session is the quiet baseline every month shares. */
 const KIND = {
-  live:   { Icon: MapPin,        text: 'text-[13.5px] font-bold text-hrc-green', icon: 'text-hrc-amber-deep' },
-  plan:   { Icon: CalendarCheck, text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
-  survey: { Icon: BarChart3,     text: 'text-[13.5px] text-hrc-ink/80',          icon: 'text-hrc-green' },
-  online: { Icon: Video,         text: 'text-[13px] text-hrc-ink/65',            icon: 'text-hrc-green/50' },
+  live:   { Icon: MapPin,        text: 'font-bold text-hrc-green', icon: 'text-hrc-amber-deep' },
+  plan:   { Icon: CalendarCheck, text: 'text-hrc-ink/80',          icon: 'text-hrc-green' },
+  survey: { Icon: BarChart3,     text: 'text-hrc-ink/80',          icon: 'text-hrc-green' },
+  online: { Icon: Video,         text: 'text-hrc-ink/65',          icon: 'text-hrc-green/50' },
+}
+/* Type sizes by kind: the online session sits half a step below the rest. `big` is
+   the Present deck's programme slide. */
+const KIND_SIZE = {
+  page: { live: 'text-[13.5px]', plan: 'text-[13.5px]', survey: 'text-[13.5px]', online: 'text-[13px]' },
+  big:  { live: 'text-[15px]',   plan: 'text-[15px]',   survey: 'text-[15px]',   online: 'text-[14px]' },
 }
 
 /* The year as four quarters of three months, matching how agendas are shared. */
 const QUARTERS = [0, 1, 2, 3].map((q) => CALENDAR.slice(q * 3, q * 3 + 3))
 
+/* One month: its date block (amber when it holds an in-person moment) and its items,
+   each marked by kind. The page's quarter cards and the deck's programme slide both
+   render months through this, so the markers mean the same thing in both. */
+function MonthRow({ c, className = '', big = false }) {
+  const live = c.items.some(([k]) => k === 'live')
+  const sizes = KIND_SIZE[big ? 'big' : 'page']
+  return (
+    <div className={`flex gap-3 ${live ? 'bg-hrc-amber/[0.1]' : ''} ${className}`}>
+      <div className={`hex-clip flex h-10 w-12 shrink-0 items-center justify-center text-[11.5px]
+                       font-extrabold uppercase tracking-[0.08em]
+                       ${live ? 'bg-hrc-amber text-hrc-green-deep' : 'bg-hrc-green text-white'}`}>
+        {c.m}
+      </div>
+      <ul className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+        {c.items.map(([k, t]) => {
+          const { Icon, text, icon } = KIND[k]
+          return (
+            <li key={t} className={`flex gap-2 leading-snug ${sizes[k]} ${text}`}>
+              <Icon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${icon}`} strokeWidth={2.2} aria-hidden="true" />
+              {t}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+/* `display` carries the display utility, so a caller can hide it by breakpoint
+   without a second, conflicting one on the same element. */
+function ProgrammeLegend({ className = '', display = 'flex', ...rest }) {
+  return (
+    <div className={`${display} flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] font-semibold text-hrc-ink/70 ${className}`}
+         {...rest}>
+      <span className="flex items-center gap-2">
+        <span className="hex-clip h-3.5 w-4 bg-hrc-amber" aria-hidden="true" /> In-person in Malta
+      </span>
+      <span className="flex items-center gap-2">
+        <Video className="h-4 w-4 text-hrc-green/60" strokeWidth={2.2} aria-hidden="true" /> Online session
+      </span>
+    </div>
+  )
+}
+
 function Programme() {
   return (
     <section id="programme" className="bg-hrc-cream py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          eyebrow="Programme"
-          title="The 2027 member calendar."
-          lead="A monthly rhythm online, three in-person moments in Malta, and benchmarking through the year."
-        />
+        <SectionHead {...HEADS.programme} />
 
-        <div className="animate-on-scroll mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] font-semibold
-                        text-hrc-ink/70" data-anim>
-          <span className="flex items-center gap-2">
-            <span className="hex-clip h-3.5 w-4 bg-hrc-amber" aria-hidden="true" /> In-person in Malta
-          </span>
-          <span className="flex items-center gap-2">
-            <Video className="h-4 w-4 text-hrc-green/60" strokeWidth={2.2} aria-hidden="true" /> Online session
-          </span>
-        </div>
+        <ProgrammeLegend className="animate-on-scroll mt-8" data-anim />
 
         {/* Quarter cards. From md up each card is a four-row grid (header + three
             months, the months as equal 1fr rows) and the cards stretch to one height,
@@ -1003,37 +1195,16 @@ function Programme() {
                 <span className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-hrc-green">Q{q + 1}</span>
                 <span className="text-[12px] font-semibold text-hrc-ink/65">{months[0].m} – {months[2].m}</span>
               </div>
-              {months.map((c, r) => {
-                const live = c.items.some(([k]) => k === 'live')
-                return (
-                  <div key={c.m}
-                       className={`flex gap-3 px-4 py-4 sm:gap-4 sm:px-5 ${r > 0 ? 'border-t border-hrc-ink/[0.07]' : ''}
-                                   ${live ? 'bg-hrc-amber/[0.1]' : ''}`}>
-                    <div className={`hex-clip flex h-10 w-12 shrink-0 items-center justify-center text-[11.5px]
-                                     font-extrabold uppercase tracking-[0.08em]
-                                     ${live ? 'bg-hrc-amber text-hrc-green-deep' : 'bg-hrc-green text-white'}`}>
-                      {c.m}
-                    </div>
-                    <ul className="min-w-0 flex-1 space-y-1.5 pt-0.5">
-                      {c.items.map(([k, t]) => {
-                        const { Icon, text, icon } = KIND[k]
-                        return (
-                          <li key={t} className={`flex gap-2 leading-snug ${text}`}>
-                            <Icon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${icon}`} strokeWidth={2.2} aria-hidden="true" />
-                            {t}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                )
-              })}
+              {months.map((c, r) => (
+                <MonthRow key={c.m} c={c}
+                          className={`px-4 py-4 sm:gap-4 sm:px-5 ${r > 0 ? 'border-t border-hrc-ink/[0.07]' : ''}`} />
+              ))}
             </div>
           ))}
         </div>
 
         <p className="animate-on-scroll mt-8 text-[13px] text-pretty text-hrc-ink/65" data-anim>
-          Topics and venues are confirmed with members through the year — agendas are shared quarterly.
+          {PROGRAMME_NOTE}
         </p>
       </div>
     </section>
@@ -1048,10 +1219,8 @@ function Members() {
     <section id="members" className="overflow-hidden border-b border-hrc-ink/8 bg-hrc-sand py-12 sm:py-14">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="animate-on-scroll flex flex-wrap items-baseline gap-x-4 gap-y-1" data-anim>
-          <Eyebrow>Our proud members</Eyebrow>
-          <p className="text-[13.5px] text-hrc-ink/65">
-            {MEMBERS.length} companies — operators, suppliers, studios, affiliates and the regulator.
-          </p>
+          <Eyebrow>{MEMBERS_HEAD.eyebrow}</Eyebrow>
+          <p className="text-[13.5px] text-hrc-ink/65">{MEMBERS_HEAD.line}</p>
         </div>
       </div>
 
@@ -1082,11 +1251,7 @@ function Testimonials() {
     <section className="relative overflow-hidden bg-hrc-green-deep py-20 sm:py-28">
       <MarkTexture className="text-hrc-amber" opacity={0.06} />
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
-        <SectionHead
-          tone="dark"
-          eyebrow="What they say"
-          title="In the members’ own words."
-        />
+        <SectionHead tone="dark" {...HEADS.testimonials} />
         <div className="mt-14 columns-1 gap-5 md:columns-2 lg:columns-3">
           {TESTIMONIALS.map((t, i) => (
             <figure key={t.name}
@@ -1121,12 +1286,11 @@ function Join() {
         </div>
         <h2 className="animate-on-scroll mt-8 text-3xl font-extrabold leading-[1.1] tracking-tight text-balance
                        text-hrc-green sm:text-5xl" data-anim style={{ transitionDelay: '60ms' }}>
-          Join the HR community<br className="hidden sm:block" /> for iGaming.
+          {JOIN.title[0]}<br className="hidden sm:block" /> {JOIN.title[1]}
         </h2>
         <p className="animate-on-scroll mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-pretty text-hrc-ink/70"
            data-anim style={{ transitionDelay: '120ms' }}>
-          Tell us your company and your Malta headcount and we will confirm your band, send the membership
-          details and get your representatives into the next session.
+          {JOIN.body}
         </p>
         {/* stacked on a phone the two buttons share one width, rather than two ragged pills */}
         <div className="animate-on-scroll mx-auto mt-9 flex max-w-xs flex-col gap-3 sm:max-w-none sm:flex-row
@@ -1172,6 +1336,504 @@ function Footer() {
   )
 }
 
+/* ─── Present mode: the deck ──────────────────────────────────────────────
+   A full-screen walk-through for a call (src/PresentMode.jsx runs it). Every slide
+   reads the page's own arrays and section copy, in page order, so a new band,
+   benefit, month or testimonial appears in the deck by itself and no slide says
+   anything the page does not. The deck is light and warm, in HR Connect's own
+   identity: cream ground, green type, amber accents, deep-green cards. */
+
+const SLIDE_H2 = 'font-extrabold tracking-tight text-balance text-hrc-green'
+const SLIDE_SIZE = {
+  default: 'text-[2rem] leading-[1.06] sm:text-5xl lg:text-[3.25rem]',
+  split:   'text-[2rem] leading-[1.06] sm:text-5xl lg:text-[2.75rem]',
+  statement: 'text-[1.6rem] leading-[1.14] sm:text-4xl sm:leading-[1.1] lg:text-[2.4rem]',
+}
+const SLIDE_LEAD = 'text-lg leading-relaxed text-pretty text-hrc-ink/75 sm:text-xl'
+const SLIDE_LABEL = 'text-[11px] font-extrabold uppercase tracking-[0.2em] text-hrc-green'
+const SLIDE_CARD = 'rounded-2xl bg-white ring-1 ring-hrc-ink/8 ' +
+                   'shadow-[0_1px_2px_rgba(20,37,27,.05),0_18px_40px_-26px_rgba(20,37,27,.35)]'
+const PM_PRIMARY = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-hrc-green px-6 text-[15px] ' +
+                   'font-bold text-white shadow-lg shadow-hrc-green/20 transition-colors hover:bg-hrc-green-mid'
+const PM_SECONDARY = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-hrc-green/25 ' +
+                     'bg-white/70 px-6 text-[15px] font-bold text-hrc-green transition-colors hover:border-hrc-green/60'
+
+const chunk = (list, n) => list.reduce((acc, x, i) => {
+  if (i % n === 0) acc.push([])
+  acc[acc.length - 1].push(x)
+  return acc
+}, [])
+
+/* The deck, in page order. `toc` puts a slide in the cover's "In this presentation"
+   list ('' lists it without a count). Band slides use the band card's anchor as their
+   id, so ?present=band-80-249 and #band-80-249 point at the same band. */
+function buildSlides() {
+  const s = []
+  s.push({ id: 'cover', label: 'Cover', group: 'HR Connect 2027', kind: 'cover' })
+  s.push({ id: 'members', label: 'Our members', group: 'Our members', kind: 'members',
+           toc: `${MEMBERS.length} companies` })
+  s.push({ id: 'what-you-get', label: 'What you get', group: 'Membership', kind: 'benefits',
+           toc: `${BENEFITS.length} included` })
+  s.push({ id: 'membership', label: 'Membership', group: 'Membership', kind: 'family',
+           toc: `${TIERS.length} bands, from ${eur(FROM_PRICE)}` })
+  TIERS.forEach((t, n) => s.push({ id: bandAnchor(t), label: bandName(t), group: 'Membership', kind: 'band', t, n }))
+  s.push({ id: 'about', label: HEADS.about.eyebrow, group: 'About HR Connect', kind: 'about', toc: '' })
+  s.push({ id: 'who', label: HEADS.audience.eyebrow, group: 'About HR Connect', kind: 'who', toc: '' })
+  s.push({ id: 'new-2027', label: HEADS.new2027.eyebrow, group: 'About HR Connect', kind: 'new',
+           toc: `${NEW_2027.length} new formats` })
+  s.push({ id: 'programme', label: HEADS.programme.eyebrow, group: 'About HR Connect', kind: 'programme',
+           toc: `${CALENDAR.length} months` })
+  const pages = chunk(TESTIMONIALS, 3)
+  pages.forEach((items, n) => s.push({
+    id: n ? `testimonials-${n + 1}` : 'testimonials',
+    label: pages.length > 1 ? `${HEADS.testimonials.eyebrow}, ${n + 1} of ${pages.length}` : HEADS.testimonials.eyebrow,
+    group: HEADS.testimonials.eyebrow, kind: 'quotes', items, n, of: pages.length,
+    toc: n ? undefined : `${TESTIMONIALS.length} members`, tocLabel: HEADS.testimonials.eyebrow,
+  }))
+  s.push({ id: 'join', label: 'Next steps', group: 'Next steps', kind: 'join', toc: '' })
+  return s
+}
+
+/* `compact` is for the two densest slides (New for 2027, Programme): tighter
+   spacing and a smaller, wider lead, so they still fit a 1280x800 screen. */
+function SlideHead({ eyebrow, title, lead, size = 'default', compact = false, className = '' }) {
+  return (
+    <div className={`${compact ? 'max-w-5xl' : 'max-w-4xl'} ${className}`}>
+      <Eyebrow size="lg">{eyebrow}</Eyebrow>
+      <h2 className={`${compact ? 'mt-3' : 'mt-4'} ${SLIDE_H2} ${SLIDE_SIZE[size]}`}>{title}</h2>
+      {lead && (
+        <p className={compact
+          ? 'mt-3 max-w-4xl text-base leading-relaxed text-pretty text-hrc-ink/75 sm:text-lg'
+          : `mt-4 max-w-3xl ${SLIDE_LEAD}`}>
+          {lead}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/* 1 · Cover: the hero's lockup, headline and proof figures, and the way through. */
+function CoverSlide({ slides, goId }) {
+  const toc = slides.filter((s) => s.toc !== undefined)
+  return (
+    <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-14">
+      <div className="lg:col-span-7">
+        <Lockup className="h-9 sm:h-11" />
+        <h1 className="mt-8 text-[2.5rem] font-extrabold leading-[1.02] tracking-tight text-hrc-green sm:mt-10 sm:text-6xl
+                       lg:text-[4.1rem]">
+          {HERO.title[0]}<br />{HERO.title[1]}
+        </h1>
+        <p className="mt-5 text-base font-bold text-hrc-ink/75 sm:text-lg">
+          <span className="whitespace-nowrap">Annual company membership</span> ·{' '}
+          <span className="whitespace-nowrap">from {eur(FROM_PRICE)} per year</span>
+        </p>
+        <p className="mt-1.5 text-[13px] font-semibold text-hrc-ink/65"><Attribution /></p>
+        <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-hrc-green/10 ring-1 ring-hrc-green/10">
+          {STATS.map((s) => (
+            <div key={s.label} className="bg-hrc-cream px-4 py-4 sm:px-5">
+              <div className="text-2xl font-extrabold tracking-tight tabular-nums text-hrc-green sm:text-3xl">{s.value}</div>
+              <div className="mt-1 text-[13px] font-bold text-hrc-ink/80">{s.label}</div>
+              <div className="mt-0.5 text-[12px] leading-snug text-hrc-ink/65">{s.note}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="lg:col-span-5">
+        <div className={`${SLIDE_CARD} px-5 py-4 sm:px-6 sm:py-5`}>
+          <p className={SLIDE_LABEL}>In this presentation</p>
+          <ol className="mt-2 divide-y divide-hrc-ink/8">
+            {toc.map((s, n) => (
+              <li key={s.id}>
+                <button type="button" onClick={() => goId(s.id)} data-toc={s.id}
+                        className="group flex min-h-11 w-full items-center gap-3 py-1.5 text-left">
+                  <span className="w-6 shrink-0 text-xs font-bold tabular-nums text-hrc-ink/65">
+                    {String(n + 1).padStart(2, '0')}
+                  </span>
+                  <span className="min-w-0 flex-1 text-[15px] font-bold text-hrc-green">{s.tocLabel || s.label}</span>
+                  {s.toc && <span className="shrink-0 text-right text-[13px] font-semibold text-hrc-ink/65">{s.toc}</span>}
+                  <ArrowRight className="h-4 w-4 shrink-0 text-hrc-green/40 transition-all group-hover:translate-x-0.5
+                                         group-hover:text-hrc-green" aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <p className="mt-4 text-center text-[13px] font-semibold text-hrc-ink/65 lg:text-left">
+          Use the arrow keys, or swipe
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* 2 · Proof: the member wall, as a still grid, with the page's own line. */
+function MembersSlide() {
+  return (
+    <div>
+      <SlideHead eyebrow={MEMBERS_HEAD.eyebrow} title="Who is already in HR Connect." lead={MEMBERS_HEAD.line} />
+      <ul className="mt-8 flex flex-wrap justify-center gap-2.5 sm:gap-3 lg:mt-10">
+        {MEMBERS.map(([slug, name]) => (
+          <li key={slug}
+              className="flex h-14 w-[calc((100%_-_1.25rem)/3_-_0.1px)] items-center justify-center rounded-xl bg-white px-3
+                         ring-1 ring-hrc-ink/[0.06] sm:h-16 sm:w-[calc((100%_-_3rem)/5_-_0.1px)]
+                         lg:w-[calc((100%_-_4.5rem)/7_-_0.1px)]">
+            <img src={`${base}logos/members/${slug}.png`} alt={name} decoding="async"
+                 className="max-h-7 w-auto max-w-full object-contain sm:max-h-8" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* 3 · What you get: the seven deliverables, as the page's "What you get" lists them. */
+function BenefitsSlide() {
+  return (
+    <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+      <SlideHead {...HEADS.benefits} size="split" className="lg:col-span-5" />
+      <ul className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:col-span-7">
+        {BENEFITS.map((b) => (
+          <li key={b.title} className="flex gap-4">
+            <div className="hex-clip flex h-10 w-11 shrink-0 items-center justify-center bg-hrc-green">
+              <b.icon className="h-5 w-5 text-hrc-amber" strokeWidth={2} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-extrabold text-balance text-hrc-green">{b.title}</h3>
+              <p className="mt-1 text-[14.5px] leading-relaxed text-hrc-ink/70">{tie(b.body)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* 4 · The family slide: the membership section's head, the four bands (each opens
+   its slide) and what every band shares. */
+function FamilySlide({ active, goId }) {
+  const h = HEADS.membership
+  return (
+    <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+      <div className="lg:col-span-5">
+        <Eyebrow size="lg">{h.eyebrow}</Eyebrow>
+        <h2 className={`mt-4 ${SLIDE_H2} ${SLIDE_SIZE.split}`}>{h.title}</h2>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <span className="inline-flex min-h-9 items-center rounded-full bg-hrc-green px-3.5 text-[13px] font-bold text-white">
+            {TIERS.length} bands
+          </span>
+          <span className="inline-flex min-h-9 items-center rounded-full bg-hrc-amber px-3.5 text-[13px] font-bold
+                           text-hrc-green-deep">
+            from {eur(FROM_PRICE)} per year
+          </span>
+          <CopyLinkButton id="membership" title="Copy a link to the membership fees"
+                          className="text-hrc-green/85 hover:bg-hrc-green/[0.07] hover:text-hrc-green" />
+        </div>
+        <p className="mt-5 text-base leading-relaxed text-pretty text-hrc-ink/75 sm:text-lg">{h.lead}</p>
+      </div>
+      <div className="lg:col-span-7">
+        <ul className="grid grid-cols-2 gap-3">
+          {TIERS.map((t) => {
+            const on = active?.id === t.id
+            return (
+              <li key={t.id} className="flex">
+                <button type="button" onClick={() => goId(bandAnchor(t))} data-family-band={t.id}
+                        className={`group flex w-full flex-col rounded-2xl bg-white p-4 text-left transition sm:p-5
+                                    ${on ? 'ring-2 ring-hrc-green' : 'ring-1 ring-hrc-ink/8 hover:ring-hrc-green/40'}`}>
+                  <span className="text-[12px] font-semibold tabular-nums text-hrc-ink/65 sm:text-[13px]">{bandName(t)}</span>
+                  <span className="mt-1.5 flex items-end justify-between gap-2">
+                    <span className="text-[1.7rem] font-extrabold leading-none tracking-tight tabular-nums text-hrc-green
+                                     sm:text-4xl">
+                      {eur(t.price)}
+                    </span>
+                    <ArrowRight className="mb-1 h-4 w-4 shrink-0 text-hrc-green/35 transition-all group-hover:translate-x-0.5
+                                           group-hover:text-hrc-green" aria-hidden="true" />
+                  </span>
+                  <span className="mt-2 text-[12.5px] font-semibold text-hrc-ink/65 sm:text-[13px]">
+                    <span className="whitespace-nowrap">per year</span> ·{' '}
+                    <span className="whitespace-nowrap">{t.reps} representatives</span>
+                  </span>
+                  {on && (
+                    <span className="mt-2 inline-flex items-center gap-1 text-[12px] font-extrabold text-hrc-green">
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /> Selected
+                    </span>
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+        <div className={`${SLIDE_CARD} mt-3 px-5 py-5 sm:px-6`}>
+          <p className={SLIDE_LABEL}>Every band includes</p>
+          <IncludesList className="mt-3 grid gap-x-6 gap-y-2.5 sm:grid-cols-2" item="text-[14.5px]" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* 5 · One slide per band: its fee, what it gets, the terms, and the same choice the
+   hero's band links make. "Choose this band" sets `picked`, so the enquiry on the
+   next-steps slide (and on the page) carries it. */
+function BandSlide({ t, n, active, onChoose, onOpenCard, goId }) {
+  const on = active?.id === t.id
+  const anchor = bandAnchor(t)
+  return (
+    <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-14">
+      <div className="lg:col-span-7">
+        <Eyebrow size="lg">{HEADS.membership.eyebrow} · Band {n + 1} of {TIERS.length}</Eyebrow>
+        <h2 className={`mt-4 ${SLIDE_H2}`}>
+          <span className="block text-[3.2rem] leading-none tabular-nums sm:text-7xl lg:text-[5.25rem]">{t.range}</span>
+          <span className="mt-2 block text-2xl font-bold tracking-normal text-hrc-ink/70 sm:text-3xl">employees</span>
+        </h2>
+        <p className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="text-5xl font-extrabold tracking-tight tabular-nums text-hrc-green sm:text-6xl">{eur(t.price)}</span>
+          <span className="text-lg font-semibold text-hrc-ink/65">per year</span>
+        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => onChoose(t.id)} aria-pressed={on} data-choose={t.id}
+                  className={on
+                    ? 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-hrc-amber px-6 text-[15px] font-bold text-hrc-green-deep'
+                    : PM_PRIMARY}>
+            {on
+              ? <><Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> Selected</>
+              : <>Choose this band <ArrowRight className="h-4 w-4" aria-hidden="true" /></>}
+          </button>
+          <button type="button" onClick={() => onOpenCard(anchor)} data-open-card={anchor} className={PM_SECONDARY}>
+            Open the card
+          </button>
+          <CopyLinkButton id={anchor} size="min-h-12 rounded-full px-4 text-sm"
+                          className="text-hrc-green/85 hover:bg-hrc-green/[0.07] hover:text-hrc-green" />
+        </div>
+        <div className="mt-8">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-hrc-ink/65">Other bands</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {TIERS.filter((o) => o.id !== t.id).map((o) => (
+              <button key={o.id} type="button" onClick={() => goId(bandAnchor(o))}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/80 px-4 text-sm font-bold
+                                 text-hrc-green ring-1 ring-hrc-green/15 transition hover:ring-hrc-green/45">
+                {active?.id === o.id && (
+                  <><Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" /><span className="sr-only">Selected:</span></>
+                )}
+                <span className="tabular-nums">{o.range}</span>
+                <span className="font-semibold tabular-nums text-hrc-ink/65">{eur(o.price)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="lg:col-span-5">
+        <div className={`${SLIDE_CARD} overflow-hidden`}>
+          <div className="px-5 py-5 sm:px-6">
+            <p className={SLIDE_LABEL}>What you get</p>
+            <ul className="mt-4 space-y-3"><BandLines t={t} big /></ul>
+          </div>
+          <div className="border-t border-hrc-ink/8 px-5 py-5 sm:px-6">
+            <p className={SLIDE_LABEL}>Every band includes</p>
+            <IncludesList className="mt-3 space-y-2.5" item="text-[15px]" />
+          </div>
+        </div>
+        <p className="mt-4 text-[14px] leading-relaxed text-pretty text-hrc-ink/70">{TERMS_YEAR} {TERMS_CONFIRM}</p>
+      </div>
+    </div>
+  )
+}
+
+/* 6 · What is HR Connect: the mission (headline + lead, as on the page) and its three pillars. */
+function AboutSlide() {
+  const cut = MISSION.indexOf('. ') + 1
+  return (
+    <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+      <div className="lg:col-span-6">
+        <Eyebrow size="lg">{HEADS.about.eyebrow}</Eyebrow>
+        <h2 className={`mt-4 ${SLIDE_H2} ${SLIDE_SIZE.statement}`}>{MISSION.slice(0, cut)}</h2>
+        <p className={`mt-5 ${SLIDE_LEAD}`}>{MISSION.slice(cut).trim()}</p>
+      </div>
+      <ul className="grid gap-3 lg:col-span-6">
+        {PILLARS.map((p) => (
+          <li key={p.title} className="corner-cut flex gap-4 bg-hrc-green-deep p-5 sm:p-6">
+            <p.icon className="mt-0.5 h-6 w-6 shrink-0 text-hrc-amber" strokeWidth={2} aria-hidden="true" />
+            <div className="min-w-0">
+              <h3 className="text-lg font-extrabold text-white">{p.title}</h3>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-white/75">{tie(p.body)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* 7 · Who it's for: who, sector, where. */
+function WhoSlide() {
+  return (
+    <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+      <SlideHead {...HEADS.audience} size="split" className="lg:col-span-5" />
+      <ul className="grid gap-3 lg:col-span-7">
+        {AUDIENCE.map((a) => (
+          <li key={a.tag} className={`${SLIDE_CARD} flex gap-4 p-5 sm:p-6`}>
+            <a.icon className="mt-1 h-6 w-6 shrink-0 text-hrc-green" strokeWidth={2} aria-hidden="true" />
+            <div className="min-w-0">
+              <span className="hex-clip-sm inline-block bg-hrc-amber px-3.5 py-1 text-[10.5px] font-extrabold uppercase
+                               tracking-[0.16em] text-hrc-green-deep">
+                {a.tag}
+              </span>
+              <h3 className="mt-2.5 text-xl font-extrabold text-hrc-green">{a.title}</h3>
+              <p className="mt-1.5 text-[15px] leading-relaxed text-hrc-ink/70">{tie(a.body)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* 8 · New for 2027: the four new formats, as the page's deep-green cards. */
+function NewSlide() {
+  return (
+    <div>
+      <SlideHead {...HEADS.new2027} size="statement" compact />
+      <ul className="mt-5 grid gap-3 lg:grid-cols-2">
+        {NEW_2027.map((x) => (
+          <li key={x.title} className="relative overflow-hidden rounded-xl bg-hrc-green-deep p-5 pl-7 sm:px-6 sm:pl-8 lg:py-4">
+            <div className="absolute inset-y-0 left-0 w-1.5 bg-hrc-amber" aria-hidden="true" />
+            <span className="hex-clip-sm inline-block bg-hrc-amber px-3.5 py-1 text-[10.5px] font-extrabold uppercase
+                             tracking-[0.14em] text-hrc-green-deep">
+              {x.tag}
+            </span>
+            <h3 className="mt-2 text-xl font-extrabold text-balance text-hrc-amber">{x.title}</h3>
+            <p className="mt-1.5 text-[14.5px] leading-[1.6] text-white/80">{tie(x.body)}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/* 9 · Programme: the member calendar, quarter by quarter, months through MonthRow.
+   Quarters run as rows here (a wide screen has the width, not the height). */
+function ProgrammeSlide() {
+  const h = HEADS.programme
+  return (
+    <div>
+      <SlideHead {...h} compact />
+      <ProgrammeLegend className="mt-4" display="flex lg:hidden" />
+      <div className="mt-4 overflow-hidden rounded-2xl bg-white ring-1 ring-hrc-ink/8 lg:mt-5">
+        {QUARTERS.map((months, q) => (
+          <div key={q} role="group" aria-label={`Quarter ${q + 1}: ${months[0].m} to ${months[2].m}`}
+               className={`grid lg:grid-cols-[6.25rem_1fr_1fr_1fr] ${q ? 'border-t border-hrc-ink/10' : ''}`}>
+            <div className="flex items-baseline justify-between gap-2 border-b border-hrc-ink/8 bg-hrc-sand/50 px-4 py-2.5
+                            lg:flex-col lg:justify-center lg:border-b-0 lg:border-r">
+              <span className="text-[13px] font-extrabold uppercase tracking-[0.1em] text-hrc-green">Q{q + 1}</span>
+              <span className="whitespace-nowrap text-[12px] font-semibold text-hrc-ink/65">{months[0].m} – {months[2].m}</span>
+            </div>
+            {months.map((c, r) => (
+              <MonthRow key={c.m} c={c} big
+                        className={`px-4 py-3 lg:py-2.5 ${r > 0 ? 'border-t border-hrc-ink/[0.07] lg:border-t-0 lg:border-l' : ''}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-8 gap-y-2">
+        <p className="text-[13px] text-pretty text-hrc-ink/65">{PROGRAMME_NOTE}</p>
+        <ProgrammeLegend display="hidden lg:flex" />
+      </div>
+    </div>
+  )
+}
+
+/* 10 · Testimonials, three to a slide, attributed as on the page. */
+function QuotesSlide({ items }) {
+  return (
+    <div>
+      <SlideHead {...HEADS.testimonials} />
+      <div className="mt-7 grid gap-4 lg:grid-cols-3 lg:gap-5">
+        {items.map((t) => (
+          <figure key={t.name} className={`${SLIDE_CARD} flex flex-col p-6 sm:p-7`}>
+            <Quote className="h-6 w-6 text-hrc-amber" fill="currentColor" strokeWidth={0} aria-hidden="true" />
+            <blockquote className="mt-4 flex-1 text-[15.5px] leading-relaxed text-hrc-ink/80">{tie(t.quote)}</blockquote>
+            <figcaption className="mt-5 border-t border-hrc-ink/10 pt-4">
+              <div className="text-[15px] font-extrabold text-hrc-green">{t.name}</div>
+              <div className="text-[13px] font-semibold text-hrc-ink/65">{t.org}</div>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* 11 · Next steps: the page's join copy, the band (the same `picked` the page uses)
+   and the page's own enquiry mailto for it. */
+function JoinSlide({ active, onChoose }) {
+  return (
+    <div className="mx-auto w-full max-w-3xl text-center">
+      <div className="flex justify-center"><Mark className="h-11 w-auto text-hrc-green" /></div>
+      <h2 className={`mt-6 ${SLIDE_H2} ${SLIDE_SIZE.default}`}>
+        {JOIN.title[0]}<br className="hidden sm:block" /> {JOIN.title[1]}
+      </h2>
+      <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-pretty text-hrc-ink/70">{JOIN.body}</p>
+      <div className={`${SLIDE_CARD} mx-auto mt-8 max-w-xl p-5 text-left sm:p-6`}>
+        <p className={SLIDE_LABEL} id="pm-band-label">Your band</p>
+        <div role="group" aria-labelledby="pm-band-label" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {TIERS.map((t) => {
+            const on = active?.id === t.id
+            return (
+              <button key={t.id} type="button" aria-pressed={on} onClick={() => onChoose(t.id)} data-join-band={t.id}
+                      className={`min-h-11 rounded-xl px-2 text-sm font-bold tabular-nums ring-1 transition-colors
+                                  ${on ? 'bg-hrc-green text-white ring-hrc-green'
+                                       : 'bg-white text-hrc-green ring-hrc-green/20 hover:ring-hrc-green/50'}`}>
+                {t.range}
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-3 min-h-6 text-[14px] font-semibold text-pretty text-hrc-ink/70" aria-live="polite">
+          {active
+            ? <><span className="font-extrabold text-hrc-green">{eur(active.price)}</span> · {bandDetail(active)}</>
+            : TERMS_CONFIRM}
+        </p>
+      </div>
+      <div className="mt-6 flex flex-col items-center gap-3">
+        <a href={buildMailto(active)} data-pm-mailto className={PM_PRIMARY}>
+          <Mail className="h-4 w-4" aria-hidden="true" /> {enquireLabel(active)}
+        </a>
+        <p className="text-[13px] font-semibold text-hrc-ink/65">
+          Or write to{' '}
+          <a href={`mailto:${CONTACT}`}
+             className="inline-flex min-h-10 items-center font-bold text-hrc-green underline decoration-hrc-green/30
+                        underline-offset-4 hover:decoration-hrc-green">
+            {CONTACT}
+          </a>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function Deck({ startId, onClose, active, onChoose, onOpenCard }) {
+  const slides = useMemo(buildSlides, [])
+  const renderSlide = (s, { goId }) => {
+    switch (s.kind) {
+      case 'cover':     return <CoverSlide slides={slides} goId={goId} />
+      case 'members':   return <MembersSlide />
+      case 'benefits':  return <BenefitsSlide />
+      case 'family':    return <FamilySlide active={active} goId={goId} />
+      case 'band':      return <BandSlide t={s.t} n={s.n} active={active} onChoose={onChoose} onOpenCard={onOpenCard} goId={goId} />
+      case 'about':     return <AboutSlide />
+      case 'who':       return <WhoSlide />
+      case 'new':       return <NewSlide />
+      case 'programme': return <ProgrammeSlide />
+      case 'quotes':    return <QuotesSlide items={s.items} />
+      case 'join':      return <JoinSlide active={active} onChoose={onChoose} />
+      default:          return null
+    }
+  }
+  return (
+    <PresentMode slides={slides} startId={startId} onClose={onClose} renderSlide={renderSlide}
+                 title="HR Connect 2027" logo={<Mark className="h-6 w-auto shrink-0 text-hrc-green" />} />
+  )
+}
+
 /* ─── App ─────────────────────────────────────────────────────────────── */
 
 /* Section order: the product comes early. The fee summary in the hero states the
@@ -1182,15 +1844,48 @@ function Footer() {
 export default function App() {
   useScrollAnimation()
   useLandOnHash()
-  const [picked, setPicked] = useState(null)   // the band chosen in the hero or on a card
+  const [picked, setPicked] = useState(null)       // the band chosen in the hero, on a card or in the deck
+  const [headcount, setHeadcount] = useState('')   // the fee finder's input
+  const typed = headcount.trim() === '' ? NaN : Number(headcount)
+  const matched = useMemo(() => tierForHeadcount(typed), [typed])
+  const active = picked ? TIERS.find((t) => t.id === picked) : matched   // what the page and the deck show
+  useBandFromHash(setPicked)
+  const { present, open, close } = usePresent()
+
+  /* "Open the card" on a band slide: close the deck, land on the card the way a deep
+     link does (instantly, clear of the bar), put its anchor in the address bar, move
+     focus to it and outline it briefly (four cards share a row on a laptop, so the
+     landing alone does not say which). It shows the band; choosing it stays a
+     separate action. */
+  const openCard = useCallback((id) => {
+    close()
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const root = document.documentElement
+      const prev = root.style.scrollBehavior
+      root.style.scrollBehavior = 'auto'
+      el.scrollIntoView({ block: 'start' })
+      root.style.scrollBehavior = prev
+      try { window.history.replaceState(window.history.state, '', `#${id}`) } catch { /* no URL access */ }
+      el.querySelector('button')?.focus({ preventScroll: true })
+      const card = el.firstElementChild
+      if (card) {
+        card.setAttribute('data-flash', '')
+        setTimeout(() => card.removeAttribute('data-flash'), 1800)
+      }
+    })
+  }, [close])
+
   return (
     <>
-      <Nav />
+      <Nav onPresent={open} />
       <main>
         <Hero onPick={setPicked} />
         <Members />
         <Benefits />
-        <Membership picked={picked} setPicked={setPicked} />
+        <Membership picked={picked} setPicked={setPicked} headcount={headcount} setHeadcount={setHeadcount}
+                    active={active} onPresent={open} />
         <About />
         <Audience />
         <New2027 />
@@ -1199,6 +1894,9 @@ export default function App() {
         <Join />
       </main>
       <Footer />
+      {present !== null && (
+        <Deck startId={present} onClose={close} active={active} onChoose={setPicked} onOpenCard={openCard} />
+      )}
     </>
   )
 }

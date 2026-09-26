@@ -28,6 +28,13 @@ npm run deploy   # build + publish to gh-pages
 | Programme | The 2027 member calendar |
 | What they say | Six attributed member testimonials |
 
+**Present mode.** `?present` opens a full-screen walk-through of the page for a call:
+cover, members, what you get, the membership bands (one slide each), what HR Connect is,
+who it's for, new for 2027, the programme, testimonials and next steps. It is built from
+the same arrays as the page, so it never says anything the page does not. The membership
+section and every band card carry **Copy link**; a band link (`#band-80-249`) opens the
+page on that band, preselected. Details in `CLAUDE.md`.
+
 ## Branding
 
 HR Connect uses its own identity, **not** the NEXT.io dark-grey house style:

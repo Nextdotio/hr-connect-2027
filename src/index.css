@@ -10,7 +10,8 @@
   --color-hrc-cream: #fffdf6;
   --color-hrc-sand: #f6f3e9;
   --color-hrc-ink: #14251b;
-  --font-family-sans: 'Plus Jakarta Sans', 'Segoe UI', Roboto, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Tailwind v4 reads --font-sans (the v3 name --font-family-sans was ignored) */
+  --font-sans: 'Plus Jakarta Sans', 'Segoe UI', Roboto, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 @layer base {
@@ -25,6 +26,10 @@
   /* Anchored sections land flush under the fixed header. Its bar changes height by
      breakpoint, so Nav measures it into --nav-h; the fallback covers the first paint. */
   section[id] { scroll-margin-top: var(--nav-h, 4.25rem); }
+  /* A band card (#band-1-79 ...) lands a little below the bar, so its top edge shows */
+  .jump-card { scroll-margin-top: calc(var(--nav-h, 4.25rem) + 1rem); }
+  /* "Open the card" in the deck outlines the band it landed on, for a moment */
+  [data-flash] { outline: 3px solid #ffce33; outline-offset: 3px; }
 }
 
 @layer utilities {
@@ -45,6 +50,11 @@
   }
   .animate-on-scroll.visible { opacity: 1; transform: none; }
 }
+
+/* Present mode: a slide slides in from the side it is coming from */
+@keyframes pm-in-fwd { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes pm-in-back { from { opacity: 0; transform: translateX(-24px) } to { opacity: 1; transform: none } }
+.pm-root :focus-visible { outline: 2px solid #245b3c; outline-offset: 2px; }
 
 @keyframes marquee {
   from { transform: translateX(0); }
