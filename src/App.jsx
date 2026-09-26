@@ -52,7 +52,7 @@ function Lockup({ className = 'h-9' }) {
       <Mark className="h-full w-auto shrink-0" />
       <img
         src={`${base}logos/hrconnect-lockup-green.svg`}
-        alt="HR Connect — NEXT.io | GAMING MALTA"
+        alt="HR Connect, NEXT.io | GAMING MALTA"
         className="h-full w-auto"
       />
     </span>
@@ -81,7 +81,7 @@ const PILLARS = [
   {
     icon: BarChart3,
     title: 'Benchmarking',
-    body: 'Pulse surveys and benchmarking studies run on member request — so you can measure your ' +
+    body: 'Pulse surveys and benchmarking studies run on member request, so you can measure your ' +
           'People function against the companies you actually compete with for talent.',
   },
   {
@@ -93,7 +93,7 @@ const PILLARS = [
   {
     icon: Globe2,
     title: 'Industry insight',
-    body: 'Guest speakers, third-party experts and iGaming Academy content — plus a seat at ' +
+    body: 'Guest speakers, third-party experts and iGaming Academy content, plus a seat at ' +
           'NEXT Summit Valletta, where the industry sets its agenda.',
   },
 ]
@@ -102,8 +102,8 @@ const AUDIENCE = [
   {
     icon: Users, tag: 'Who',
     title: 'HR professionals',
-    body: 'All People and HR seniority levels — CHRO, CPO, Heads of HR, HR Business Partners and ' +
-          'HR Coordinators — operating in the iGaming industry.',
+    body: 'All People and HR seniority levels (CHRO, CPO, Heads of HR, HR Business Partners and ' +
+          'HR Coordinators) operating in the iGaming industry.',
   },
   {
     icon: Building2, tag: 'Sector',
@@ -119,9 +119,9 @@ const AUDIENCE = [
 
 const BENEFITS = [
   { icon: UserCheck,      title: 'Named representatives',        body: 'Two or three named seats per member company, depending on the size of your Malta organisation.' },
-  { icon: CalendarDays,   title: 'Monthly online sessions',      body: 'A members-only Zoom session every month — member introductions, guest speakers and structured peer exchange.' },
+  { icon: CalendarDays,   title: 'Monthly online sessions',      body: 'A members-only Zoom session every month: member introductions, guest speakers and structured peer exchange.' },
   { icon: BarChart3,      title: 'Pulse surveys & benchmarking', body: 'Regular benchmarking on the topics members ask for, with results shared back to the community first.' },
-  { icon: Utensils,       title: '3 workshops & dinners in Malta', body: 'Three in-person moments a year — a spring workshop, a summit dinner and the November gathering.' },
+  { icon: Utensils,       title: '3 workshops & dinners in Malta', body: 'Three in-person moments a year: a spring workshop, a summit dinner and the November gathering.' },
   { icon: Presentation,   title: 'Experienced HR mentors',       body: 'Direct access to senior HR practitioners inside the network for the problems that need a second opinion.' },
   { icon: Ticket,         title: 'Free NEXT Summit Valletta',    body: 'Complimentary conference passes to NEXT Summit Valletta, plus the HR Connect programme on site.' },
   { icon: GraduationCap,  title: 'iGaming Academy course',       body: 'An iGaming Academy course included with membership, for you or someone on your team.' },
@@ -137,21 +137,21 @@ const NEW_2027 = [
   {
     tag: 'Enhanced engagement',
     title: 'Structured Peer Exchange',
-    body: 'Dedicated time within each session for peer-to-peer discussion — members bring live challenges ' +
+    body: 'Dedicated time within each session for peer-to-peer discussion: members bring live challenges ' +
           'and exchange solutions in a trusted, anonymous-to-outsiders space.',
   },
   {
     tag: 'Member-led panels',
     title: 'Member Expert Panel Series',
     body: 'Drawn from our strengths-mapping survey, we identify the "acclaimed knowers" across HR ' +
-          'disciplines — talent acquisition, leadership coaching, workforce planning and more. ' +
+          'disciplines: talent acquisition, leadership coaching, workforce planning and more. ' +
           'Topic-focused panels seat these practitioners at the front to share real ways of working, ' +
           'giving every member direct access to lived expertise from within the community.',
   },
   {
     tag: 'New event format',
     title: 'HR Connect Poker Tournament',
-    body: 'HR professionals learn the game and experience the social dynamics of the casino floor — a real ' +
+    body: 'HR professionals learn the game and experience the social dynamics of the casino floor: a real ' +
           'casino experience connecting the people-side of iGaming with its roots. Informal, memorable, ' +
           'and uniquely relevant to the community we serve.',
   },
@@ -226,7 +226,7 @@ const TESTIMONIALS = [
   {
     name: 'Andrea Saliba', org: 'Rhino Entertainment',
     quote: 'HR Connect truly lives up to its name, by bringing HR professionals within the iGaming industry ' +
-      'together — creating a platform to share ideas and best practices. This inclusive platform is designed ' +
+      'together, creating a platform to share ideas and best practices. This inclusive platform is designed ' +
       'by HR professionals, for HR professionals, addressing the industry’s need for collaborative spaces.',
   },
   {
@@ -255,21 +255,21 @@ const HERO = { eyebrow: 'The one and only', title: ['The HR community', 'for iGa
 
 const MEMBERS_HEAD = {
   eyebrow: 'Our proud members',
-  line: `${MEMBERS.length} companies — operators, suppliers, studios, affiliates and the regulator.`,
+  line: `${MEMBERS.length} companies: operators, suppliers, studios, affiliates and the regulator.`,
 }
 
 const HEADS = {
   benefits: {
     eyebrow: 'What you get',
     title: 'One annual fee. Everything the community does.',
-    lead: 'Every band receives the full programme — the only things that change with company size are ' +
+    lead: 'Every band receives the full programme. The only things that change with company size are ' +
           'the number of named representatives and the fee.',
   },
   membership: {
     eyebrow: 'Membership',
     title: 'The size of your Malta organisation sets your fee.',
-    lead: 'Annual company membership. Four bands, published pricing, no negotiation needed — find your ' +
-          'band below. Membership is priced on organisation size — benefits reach your whole Malta team.',
+    lead: 'Annual company membership. Four bands, published pricing, no negotiation needed. Find your ' +
+          'band below. Membership is priced on organisation size, and benefits reach your whole Malta team.',
   },
   about: { eyebrow: 'What is HR Connect' },   // the headline and lead are MISSION, split at its first sentence
   audience: {
@@ -292,7 +292,7 @@ const HEADS = {
 }
 
 const PROGRAMME_NOTE =
-  'Topics and venues are confirmed with members through the year — agendas are shared quarterly.'
+  'Topics and venues are confirmed with members through the year, and agendas are shared quarterly.'
 
 /* The membership terms, shown once under the band cards and on every band slide. */
 const TERMS_YEAR =
@@ -325,7 +325,7 @@ const bandAnchor = (t) =>
   'band-' + t.range.replace('+', ' plus').split(/[^0-9a-z]+/i).filter(Boolean).join('-').toLowerCase()
 
 /* The enquiry button's label, on the membership section and the deck's join slide. */
-const enquireLabel = (t) => (t ? `Enquire — ${eur(t.price)}` : 'Enquire about membership')
+const enquireLabel = (t) => (t ? `Enquire · ${eur(t.price)}` : 'Enquire about membership')
 
 /* Typesetting only: ties a text's last two words with a no-break space, so a card
    never ends on a lone word. (CSS `text-wrap: pretty` is a heuristic in Chrome and
@@ -338,7 +338,7 @@ function tierForHeadcount(n) {
 }
 
 function buildMailto(tier) {
-  const subject = 'HR Connect 2027 — membership enquiry'
+  const subject = 'HR Connect 2027: membership enquiry'
   const lines = [
     'Hi,',
     '',
@@ -347,7 +347,7 @@ function buildMailto(tier) {
     'Company:',
     'Malta headcount:',
     tier
-      ? `Indicated tier: ${tier.range} employees — ${eur(tier.price)} per year (${tier.reps} representatives)`
+      ? `Indicated tier: ${tier.range} employees, ${eur(tier.price)} per year (${tier.reps} representatives)`
       : 'Indicated tier: to be confirmed',
     '',
     'Please send over the membership details and next steps.',
@@ -528,7 +528,7 @@ function Nav({ onPresent }) {
         ${solid ? 'bg-hrc-cream/92 backdrop-blur-md shadow-[0_1px_0_rgba(36,91,60,.12)]' : 'bg-transparent'}`}
     >
       <div ref={barRef} className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-        <a href="#top" className="flex h-11 shrink-0 items-center" aria-label="HR Connect — top of page">
+        <a href="#top" className="flex h-11 shrink-0 items-center" aria-label="HR Connect, top of page">
           <Lockup className="h-7 min-[360px]:h-8 sm:h-9" />
         </a>
 
@@ -714,7 +714,7 @@ function Hero({ onPick }) {
           <p className="animate-on-scroll mt-5 max-w-xl text-base leading-relaxed text-pretty text-hrc-ink/75
                         sm:mt-7 sm:text-lg lg:mt-6"
              data-anim style={{ transitionDelay: '120ms' }}>
-            HR Connect is a business network for iGaming HR professionals — an omni-channel platform where
+            HR Connect is a business network for iGaming HR professionals, an omni-channel platform where
             members share experience, knowledge and connections. Supported by GamingMalta, we help iGaming
             organisations improve their People functions through peer-to-peer collaboration.
           </p>
@@ -1317,7 +1317,7 @@ function Footer() {
     <footer className="bg-hrc-green-deep py-12">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-5 text-center sm:px-8
                       md:flex-row md:justify-between md:text-left">
-        <img src={`${base}logos/hrconnect-lockup-amber.svg`} alt="HR Connect — NEXT.io | GAMING MALTA"
+        <img src={`${base}logos/hrconnect-lockup-amber.svg`} alt="HR Connect, NEXT.io | GAMING MALTA"
              className="h-9 w-auto" />
         <div className="text-[13px] leading-relaxed text-white/60">
           <p>A NEXT.io portfolio project, supported by GamingMalta.</p>
