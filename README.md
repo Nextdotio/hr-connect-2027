@@ -18,15 +18,22 @@ npm run deploy   # build + publish to gh-pages
 
 | Section | Content |
 | --- | --- |
-| Hero | Positioning, mission, proof stats |
+| Hero | Positioning, mission, the four fee bands at a glance, proof stats |
 | Members | The 27-company logo wall, directly beneath the hero |
-| What is HR Connect | Mission statement + three pillars |
-| Who it's for | Who / Sector / Where |
 | What you get | The seven membership deliverables |
 | Membership | Four fee bands by Malta headcount, with an interactive fee finder |
+| What is HR Connect | Mission statement + three pillars |
+| Who it's for | Who / Sector / Where |
 | New for 2027 | Member introductions, peer exchange, expert panels, poker tournament |
 | Programme | The 2027 member calendar |
 | What they say | Six attributed member testimonials |
+
+**Present mode.** `?present` opens a full-screen walk-through of the page for a call:
+cover, members, what you get, the membership bands (one slide each), what HR Connect is,
+who it's for, new for 2027, the programme, testimonials and next steps. It is built from
+the same arrays as the page, so it never says anything the page does not. The membership
+section and every band card carry **Copy link**; a band link (`#band-80-249`) opens the
+page on that band, preselected. Details in `CLAUDE.md`.
 
 ## Branding
 
