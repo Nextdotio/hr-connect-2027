@@ -48,7 +48,9 @@
     transform: translateY(26px);
     transition: opacity .65s cubic-bezier(.2,.7,.3,1), transform .65s cubic-bezier(.2,.7,.3,1);
   }
-  .animate-on-scroll.visible { opacity: 1; transform: none; }
+  /* set by useScrollAnimation as an attribute, not a class: React rewrites the class
+     attribute when a className changes with state, and would drop a class it did not set */
+  .animate-on-scroll[data-revealed] { opacity: 1; transform: none; }
 }
 
 /* Present mode: a slide slides in from the side it is coming from */

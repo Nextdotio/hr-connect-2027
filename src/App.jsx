@@ -357,16 +357,22 @@ function buildMailto(tier) {
   return `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\r\n'))}`
 }
 
+/* Scroll reveal. A revealed element is marked with the `data-revealed` attribute, never
+   a class: React owns the class attribute and rewrites it whenever a className changes
+   with state, so an added class was dropped and the element faded out for good (the
+   observer has already let it go). That is how a band card vanished once it became the
+   picked or typed band (29 Sep 2026). No prop sets `data-revealed`, so React leaves it. */
 function useScrollAnimation() {
   useEffect(() => {
     const els = document.querySelectorAll('[data-anim]')
+    const reveal = (el) => el.setAttribute('data-revealed', '')
     if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('visible'))
+      els.forEach(reveal)
       return
     }
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => {
-        if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target) }
+        if (e.isIntersecting) { reveal(e.target); io.unobserve(e.target) }
       }),
       { threshold: 0.12, rootMargin: '0px 0px -60px 0px' },
     )
