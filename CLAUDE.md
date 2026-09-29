@@ -47,6 +47,9 @@ dark-grey/yellow house style used by the summit brochures.
 - `CONTACT` (top of `App.jsx`) is the enquiry address used by every mailto.
 - The programme calendar is deliberately member-facing only. Internal admin,
   invoicing and campaign lines from the project deck are filtered out.
+- iGaming always renders with a lowercase i, including inside uppercase elements (Stuart, 29 Sep 2026).
+  This page has no brand-case helper: in an uppercase label, wrap the word
+  (possessive included) in a `normal-case` span.
 
 ## Internal-only material — never publish
 
