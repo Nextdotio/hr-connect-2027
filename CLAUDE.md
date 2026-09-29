@@ -170,3 +170,26 @@ buy each and every product."
   (display utilities sort alphabetically, so `inline-flex` beats `hidden`):
   that is why `PRESENT_PILL`, `ProgrammeLegend` (`display`) and `CopyLinkButton`
   (`size`) take their display or box classes separately.
+
+## Band cards vanished when chosen (29 Sep 2026)
+
+Stuart, on the live site: "when I type '1' the 1-79 card disappears. And when I
+click 'Select this band', the card also disappears".
+
+- **Cause.** `useScrollAnimation` marked a revealed element by adding a `visible`
+  class, then stopped observing it. A band card's className follows the active
+  band, and React rewrites the whole class attribute when a className changes, so
+  the class was dropped and the card went back to `.animate-on-scroll`'s hidden
+  state (opacity 0) for good. Every band that became or stopped being the active
+  one vanished: the typed match, a picked card, and a card chosen by a band link,
+  a hero band link or the deck, once the cards had been seen. Cards "disappearing
+  as the number changes" was this bug, not a filter: all four bands always show,
+  and the active one is ringed, lifted and reads "Selected".
+- **The rule.** The reveal is the `data-revealed` attribute
+  (`.animate-on-scroll[data-revealed]` in `index.css`). No prop sets it, so React
+  never touches it, and an `animate-on-scroll` element may carry a className that
+  follows state. Never mark the reveal with a class again, and never set
+  `data-revealed` from JSX. The observer only sees `[data-anim]` nodes present at
+  first render, so keep the cards' keys stable.
+- **QA.** Type 1, 80, 300, 600 and 0 in the fee finder, then click each card's
+  Select this band: all four cards stay at full opacity at 390 and 1280.
